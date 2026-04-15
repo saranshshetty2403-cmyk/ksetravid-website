@@ -81,6 +81,7 @@ export const upiSettings = mysqlTable("upi_settings", {
   upiId: varchar("upiId", { length: 128 }).notNull(),
   accountName: varchar("accountName", { length: 128 }).notNull(),
   qrCodeUrl: text("qrCodeUrl"),
+  whatsappNumber: varchar("whatsappNumber", { length: 32 }),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type UpiSettings = typeof upiSettings.$inferSelect;

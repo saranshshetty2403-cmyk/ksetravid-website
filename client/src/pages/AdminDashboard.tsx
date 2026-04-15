@@ -159,6 +159,9 @@ const SITE_IMAGE_REGISTRY = [
   { key: "gallery_5", label: "Gallery Photo 5", section: "Gallery", desc: "Gallery grid slot 5" },
   { key: "gallery_6", label: "Gallery Photo 6", section: "Gallery", desc: "Gallery grid slot 6" },
   { key: "tour_bg", label: "Tour Background", section: "Tour", desc: "Background behind tour dates" },
+  { key: "member_pritam", label: "Pritam Middey (Guitars)", section: "Members", desc: "Member photo in About section" },
+  { key: "member_arunav", label: "Arunav Bhattacharjee (Bass)", section: "Members", desc: "Member photo in About section" },
+  { key: "member_nikhil", label: "Nikhil TR (Drums)", section: "Members", desc: "Member photo in About section" },
 ];
 
 function ImageManager() {
@@ -692,12 +695,12 @@ function TourEditor() {
 function UpiSettings() {
   const { data: upi, refetch } = trpc.upi.get.useQuery();
   const saveMutation = trpc.upi.save.useMutation({ onSuccess: () => { refetch(); toast.success("UPI settings saved"); } });
-  const [form, setForm] = useState({ upiId: "", accountName: "", qrCodeUrl: "" });
+  const [form, setForm] = useState({ upiId: "", accountName: "", qrCodeUrl: "", whatsappNumber: "" });
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (upi && !loaded) {
-      setForm({ upiId: upi.upiId, accountName: upi.accountName, qrCodeUrl: upi.qrCodeUrl ?? "" });
+      setForm({ upiId: upi.upiId, accountName: upi.accountName, qrCodeUrl: upi.qrCodeUrl ?? "", whatsappNumber: (upi as any).whatsappNumber ?? "" });
       setLoaded(true);
     }
   }, [upi, loaded]);
@@ -723,8 +726,9 @@ function UpiSettings() {
         <div className="space-y-4">
           <Input label="UPI ID" value={form.upiId} onChange={v => setForm({ ...form, upiId: v })} placeholder="yourname@bank" required />
           <Input label="Account Name" value={form.accountName} onChange={v => setForm({ ...form, accountName: v })} placeholder="Full name on UPI account" required />
+          <Input label="WhatsApp Number (with country code)" value={form.whatsappNumber} onChange={v => setForm({ ...form, whatsappNumber: v })} placeholder="919876543210" />
           <Input label="QR Code Image URL (optional)" value={form.qrCodeUrl} onChange={v => setForm({ ...form, qrCodeUrl: v })} placeholder="https://..." />
-          <Btn onClick={() => saveMutation.mutate({ upiId: form.upiId, accountName: form.accountName, qrCodeUrl: form.qrCodeUrl || null })} disabled={saveMutation.isPending}>
+          <Btn onClick={() => saveMutation.mutate({ upiId: form.upiId, accountName: form.accountName, qrCodeUrl: form.qrCodeUrl || null, whatsappNumber: form.whatsappNumber || null })} disabled={saveMutation.isPending}>
             <Save size={14} /> {saveMutation.isPending ? "Saving..." : "Save UPI Settings"}
           </Btn>
         </div>

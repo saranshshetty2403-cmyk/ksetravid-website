@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
-const WHATSAPP_NUMBER = "919999999999"; // placeholder — band's WhatsApp
+const FALLBACK_WHATSAPP = "919999999999"; // fallback until admin sets WhatsApp number
 
 function formatINR(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
@@ -61,6 +61,7 @@ type UpiData = {
   upiId: string;
   accountName: string;
   qrCodeUrl: string | null;
+  whatsappNumber?: string | null;
 };
 
 /* ── UPI Checkout Modal ─────────────────────────────────────────── */
@@ -84,7 +85,7 @@ function UpiCheckoutModal({
   const whatsappMsg = encodeURIComponent(
     `Hi! I just paid ₹${product.price} via UPI for:\n*${product.name}* — Size: ${size}\nUPI ID: ${upi.upiId}\nPlease confirm my order. 🤘`
   );
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${whatsappMsg}`;
+  const whatsappUrl = `https://wa.me/${upi.whatsappNumber || FALLBACK_WHATSAPP}?text=${whatsappMsg}`;
 
   function copyUpiId() {
     navigator.clipboard.writeText(upi.upiId).then(() => {

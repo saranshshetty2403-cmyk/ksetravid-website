@@ -33,5 +33,5 @@
 - [x] Contact/Footer section
 
 ## Pending
-- [ ] Wire About section member photos to DB (currently hardcoded, no DB key yet)
-- [ ] Add WhatsApp number to UPI settings (currently hardcoded placeholder)
+- [x] Wire About section member photos to DB (member_pritam, member_arunav, member_saurav keys added)
+- [x] Add WhatsApp number to UPI settings (whatsappNumber field added to DB + admin form)

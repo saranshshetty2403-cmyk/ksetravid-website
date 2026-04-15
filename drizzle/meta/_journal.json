@@ -22,6 +22,13 @@
       "when": 1776278886615,
       "tag": "0002_strong_earthquake",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1776280948871,
+      "tag": "0003_clean_cargill",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `upi_settings` ADD `whatsappNumber` varchar(32);

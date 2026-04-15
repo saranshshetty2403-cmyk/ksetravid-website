@@ -195,6 +195,7 @@ export const appRouter = router({
         upiId: z.string().min(1),
         accountName: z.string().min(1),
         qrCodeUrl: z.string().url().optional().nullable(),
+        whatsappNumber: z.string().optional().nullable(),
       }))
       .mutation(({ input }) => saveUpiSettings(input)),
   }),

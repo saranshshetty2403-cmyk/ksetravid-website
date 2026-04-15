@@ -13,16 +13,19 @@ const MEMBERS = [
   {
     name: "Pritam Middey",
     role: "Guitars",
+    dbKey: "member_pritam",
     description: "The architect of Ksetravid's intricate riff structures, blending technical death metal precision with progressive melodic sensibility.",
   },
   {
     name: "Arunav Bhattacharjee",
     role: "Bass",
+    dbKey: "member_arunav",
     description: "Low-end foundation and harmonic depth. Also active in Sugar! and ex-Nihilus, bringing cross-genre versatility to the rhythm section.",
   },
   {
     name: "Nikhil TR",
     role: "Drums",
+    dbKey: "member_nikhil",
     description: "Explosive technical drumming forged across Demonic Resurrection, Godless, and Incendiarius. The rhythmic engine of Ksetravid's chaos.",
   },
 ];
@@ -145,15 +148,39 @@ export default function AboutSection() {
           </h3>
 
           <div className="grid md:grid-cols-3 gap-6">
-            {MEMBERS.map((member, i) => (
+            {MEMBERS.map((member, i) => {
+              const memberPhoto = images?.find(img => img.key === member.dbKey)?.url;
+              return (
               <div
                 key={member.name}
-                className="card-hover-crimson p-6 border relative overflow-hidden"
+                className="card-hover-crimson border relative overflow-hidden"
                 style={{
                   borderColor: "oklch(1 0 0 / 0.08)",
                   backgroundColor: "oklch(0.10 0.006 285)",
                 }}
               >
+                {/* Member photo */}
+                {memberPhoto ? (
+                  <div className="w-full h-48 overflow-hidden">
+                    <img
+                      src={memberPhoto}
+                      alt={member.name}
+                      className="w-full h-full object-cover object-top"
+                      style={{ filter: "contrast(1.05) brightness(0.9)" }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-full h-24 flex items-center justify-center"
+                    style={{ backgroundColor: "oklch(0.12 0.008 285)" }}
+                  >
+                    <span className="font-display text-4xl opacity-20" style={{ color: "oklch(0.52 0.24 25)" }}>
+                      {member.name.charAt(0)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="p-6">
                 {/* Number accent */}
                 <span
                   className="absolute top-4 right-4 font-display text-5xl opacity-10"
@@ -180,8 +207,11 @@ export default function AboutSection() {
                 <p className="font-body text-sm leading-relaxed" style={{ color: "oklch(0.60 0.015 285)" }}>
                   {member.description}
                 </p>
+                </div>
               </div>
-            ))}
+              );
+            })}
+
           </div>
 
           {/* Vocalist search notice */}

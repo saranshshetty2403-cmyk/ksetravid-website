@@ -199,7 +199,7 @@ export async function saveUpiSettings(data: InsertUpiSettings) {
   const existing = await getUpiSettings();
   if (existing) {
     await db.update(upiSettings)
-      .set({ upiId: data.upiId, accountName: data.accountName, qrCodeUrl: data.qrCodeUrl ?? null })
+      .set({ upiId: data.upiId, accountName: data.accountName, qrCodeUrl: data.qrCodeUrl ?? null, whatsappNumber: data.whatsappNumber ?? null })
       .where(eq(upiSettings.id, existing.id));
   } else {
     await db.insert(upiSettings).values(data);

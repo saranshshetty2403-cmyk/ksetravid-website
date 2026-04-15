@@ -112,6 +112,27 @@ const INITIAL_IMAGES = [
     url: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_tour_bg-G2r5A4Ci2qCwubZPq5aP54.webp",
     altText: "Tour section background",
   },
+  {
+    key: "member_pritam",
+    label: "Pritam Middey (Guitars)",
+    section: "Members",
+    url: "",
+    altText: "Pritam Middey — Guitars",
+  },
+  {
+    key: "member_arunav",
+    label: "Arunav Bhattacharjee (Bass)",
+    section: "Members",
+    url: "",
+    altText: "Arunav Bhattacharjee — Bass",
+  },
+  {
+    key: "member_nikhil",
+    label: "Nikhil TR (Drums)",
+    section: "Members",
+    url: "",
+    altText: "Nikhil TR — Drums",
+  },
 ];
 
 // ── Tour Dates ────────────────────────────────────────────────────────────────

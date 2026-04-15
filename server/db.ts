@@ -1,5 +1,6 @@
 import { eq, asc } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 import { createHash } from "crypto";
 import {
   InsertUser, users,
@@ -11,21 +12,27 @@ import {
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
+// ── DB singleton (Neon HTTP — works in both serverless and Node.js) ───────────
 let _db: ReturnType<typeof drizzle> | null = null;
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
+export function getDb() {
+  if (_db) return _db;
+  const url = process.env.KSETRAVID_DB_URL || process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+  if (!url) {
+    console.warn("[Database] No DATABASE_URL set — DB unavailable");
+    return null;
   }
-  return _db;
+  try {
+    const sql = neon(url);
+    _db = drizzle(sql);
+    return _db;
+  } catch (err) {
+    console.warn("[Database] Failed to connect:", err);
+    return null;
+  }
 }
 
-// Simple SHA-256 hash (no bcrypt dependency needed)
+// Simple SHA-256 hash
 function hashPassword(password: string): string {
   return createHash("sha256").update(password + "ksetravid_salt_2026").digest("hex");
 }
@@ -34,32 +41,39 @@ function hashPassword(password: string): string {
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
+  const db = getDb();
   if (!db) { console.warn("[Database] Cannot upsert user"); return; }
 
-  const values: InsertUser = { openId: user.openId };
-  const updateSet: Record<string, unknown> = {};
-  const textFields = ["name", "email", "loginMethod"] as const;
+  const existing = await db.select().from(users).where(eq(users.openId, user.openId)).limit(1);
+  const now = new Date();
 
-  textFields.forEach((field) => {
-    const value = user[field];
-    if (value === undefined) return;
-    const normalized = value ?? null;
-    values[field] = normalized;
-    updateSet[field] = normalized;
-  });
-
-  if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
-  if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
-  else if (user.openId === ENV.ownerOpenId) { values.role = 'admin'; updateSet.role = 'admin'; }
-  if (!values.lastSignedIn) values.lastSignedIn = new Date();
-  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
-
-  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  if (existing.length > 0) {
+    await db.update(users)
+      .set({
+        name: user.name ?? existing[0].name,
+        email: user.email ?? existing[0].email,
+        loginMethod: user.loginMethod ?? existing[0].loginMethod,
+        lastSignedIn: now,
+        updatedAt: now,
+      })
+      .where(eq(users.openId, user.openId));
+  } else {
+    const lastSignedIn = user.lastSignedIn instanceof Date
+      ? user.lastSignedIn
+      : user.lastSignedIn ? new Date(user.lastSignedIn) : now;
+    await db.insert(users).values({
+      openId: user.openId,
+      name: user.name,
+      email: user.email,
+      loginMethod: user.loginMethod,
+      role: user.openId === ENV.ownerOpenId ? "admin" : "user",
+      lastSignedIn,
+    });
+  }
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
@@ -68,25 +82,26 @@ export async function getUserByOpenId(openId: string) {
 // ── Admin Credentials ─────────────────────────────────────────────────────────
 
 export async function getAdminCredentials() {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return null;
   const result = await db.select().from(adminCredentials).limit(1);
   return result[0] ?? null;
 }
 
 export async function seedAdminCredentials(username: string, password: string) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   const existing = await getAdminCredentials();
-  if (existing) return; // Already seeded
+  if (existing) return; // Already seeded — never overwrite
   await db.insert(adminCredentials).values({
     username,
     passwordHash: hashPassword(password),
   });
+  console.log("[AdminAuth] Initial credentials seeded to DB.");
 }
 
 export async function verifyAdminCredentials(username: string, password: string): Promise<boolean> {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return false;
   const creds = await getAdminCredentials();
   if (!creds) return false;
@@ -94,12 +109,12 @@ export async function verifyAdminCredentials(username: string, password: string)
 }
 
 export async function updateAdminCredentials(newUsername: string, newPassword: string) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   const existing = await getAdminCredentials();
   if (existing) {
     await db.update(adminCredentials)
-      .set({ username: newUsername, passwordHash: hashPassword(newPassword) })
+      .set({ username: newUsername, passwordHash: hashPassword(newPassword), updatedAt: new Date() })
       .where(eq(adminCredentials.id, existing.id));
   } else {
     await db.insert(adminCredentials).values({
@@ -109,29 +124,34 @@ export async function updateAdminCredentials(newUsername: string, newPassword: s
   }
 }
 
+export async function getCurrentAdminUsername(): Promise<string | null> {
+  const creds = await getAdminCredentials();
+  return creds?.username ?? null;
+}
+
 // ── Tour Dates ────────────────────────────────────────────────────────────────
 
 export async function getTourDates() {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return [];
   return db.select().from(tourDates).orderBy(asc(tourDates.sortOrder), asc(tourDates.date));
 }
 
 export async function upsertTourDate(data: InsertTourDate & { id?: number }) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {
     const { id, ...rest } = data;
-    await db.update(tourDates).set(rest).where(eq(tourDates.id, id));
+    await db.update(tourDates).set({ ...rest, updatedAt: new Date() }).where(eq(tourDates.id, id));
     return id;
   } else {
-    const [result] = await db.insert(tourDates).values(data);
-    return (result as any).insertId as number;
+    const result = await db.insert(tourDates).values(data).returning({ id: tourDates.id });
+    return result[0].id;
   }
 }
 
 export async function deleteTourDate(id: number) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(tourDates).where(eq(tourDates.id, id));
 }
@@ -139,47 +159,50 @@ export async function deleteTourDate(id: number) {
 // ── Site Images ───────────────────────────────────────────────────────────────
 
 export async function getSiteImages() {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return [];
   return db.select().from(siteImages).orderBy(asc(siteImages.section), asc(siteImages.key));
 }
 
 export async function upsertSiteImage(data: InsertSiteImage & { id?: number }) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {
     const { id, ...rest } = data;
-    await db.update(siteImages).set(rest).where(eq(siteImages.id, id));
+    await db.update(siteImages).set({ ...rest, updatedAt: new Date() }).where(eq(siteImages.id, id));
   } else {
-    await db.insert(siteImages).values(data).onDuplicateKeyUpdate({
-      set: { url: data.url, altText: data.altText ?? null },
-    });
+    // Upsert by key using Postgres ON CONFLICT
+    await db.insert(siteImages).values(data)
+      .onConflictDoUpdate({
+        target: siteImages.key,
+        set: { url: data.url, altText: data.altText ?? null, updatedAt: new Date() },
+      });
   }
 }
 
 // ── Merch Products ────────────────────────────────────────────────────────────
 
 export async function getMerchProducts() {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return [];
   return db.select().from(merchProducts).orderBy(asc(merchProducts.sortOrder), asc(merchProducts.id));
 }
 
 export async function upsertMerchProduct(data: InsertMerchProduct & { id?: number }) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   if (data.id) {
     const { id, ...rest } = data;
-    await db.update(merchProducts).set(rest).where(eq(merchProducts.id, id));
+    await db.update(merchProducts).set({ ...rest, updatedAt: new Date() }).where(eq(merchProducts.id, id));
     return id;
   } else {
-    const [result] = await db.insert(merchProducts).values(data);
-    return (result as any).insertId as number;
+    const result = await db.insert(merchProducts).values(data).returning({ id: merchProducts.id });
+    return result[0].id;
   }
 }
 
 export async function deleteMerchProduct(id: number) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   await db.delete(merchProducts).where(eq(merchProducts.id, id));
 }
@@ -187,19 +210,25 @@ export async function deleteMerchProduct(id: number) {
 // ── UPI Settings ──────────────────────────────────────────────────────────────
 
 export async function getUpiSettings() {
-  const db = await getDb();
+  const db = getDb();
   if (!db) return null;
   const result = await db.select().from(upiSettings).limit(1);
   return result[0] ?? null;
 }
 
 export async function saveUpiSettings(data: InsertUpiSettings) {
-  const db = await getDb();
+  const db = getDb();
   if (!db) throw new Error("DB not available");
   const existing = await getUpiSettings();
   if (existing) {
     await db.update(upiSettings)
-      .set({ upiId: data.upiId, accountName: data.accountName, qrCodeUrl: data.qrCodeUrl ?? null, whatsappNumber: data.whatsappNumber ?? null })
+      .set({
+        upiId: data.upiId,
+        accountName: data.accountName,
+        qrCodeUrl: data.qrCodeUrl ?? null,
+        whatsappNumber: data.whatsappNumber ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(upiSettings.id, existing.id));
   } else {
     await db.insert(upiSettings).values(data);

@@ -1,33 +1,35 @@
-import { boolean, int, mysqlTable, text, timestamp, varchar, mysqlEnum } from "drizzle-orm/mysql-core";
+import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // ── Users (Manus OAuth — kept for system compatibility) ──────────────────────
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const roleEnum = pgEnum("role", ["user", "admin"]);
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: roleEnum("role").default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 // ── Admin Credentials (custom username/password auth) ────────────────────────
-export const adminCredentials = mysqlTable("admin_credentials", {
-  id: int("id").autoincrement().primaryKey(),
+export const adminCredentials = pgTable("admin_credentials", {
+  id: serial("id").primaryKey(),
   username: varchar("username", { length: 128 }).notNull().unique(),
   passwordHash: varchar("passwordHash", { length: 256 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 export type AdminCredentials = typeof adminCredentials.$inferSelect;
 
 // ── Tour Dates ────────────────────────────────────────────────────────────────
-export const tourDates = mysqlTable("tour_dates", {
-  id: int("id").autoincrement().primaryKey(),
+export const tourDates = pgTable("tour_dates", {
+  id: serial("id").primaryKey(),
   date: varchar("date", { length: 32 }).notNull(),
   city: varchar("city", { length: 128 }).notNull(),
   venue: varchar("venue", { length: 256 }).notNull(),
@@ -35,54 +37,54 @@ export const tourDates = mysqlTable("tour_dates", {
   ticketUrl: text("ticketUrl"),
   isSoldOut: boolean("isSoldOut").default(false).notNull(),
   isPast: boolean("isPast").default(false).notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
+  sortOrder: integer("sortOrder").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 export type TourDate = typeof tourDates.$inferSelect;
 export type InsertTourDate = typeof tourDates.$inferInsert;
 
 // ── Site Images ───────────────────────────────────────────────────────────────
-export const siteImages = mysqlTable("site_images", {
-  id: int("id").autoincrement().primaryKey(),
+export const siteImages = pgTable("site_images", {
+  id: serial("id").primaryKey(),
   key: varchar("key", { length: 128 }).notNull().unique(),
   label: varchar("label", { length: 256 }).notNull(),
   section: varchar("section", { length: 64 }).notNull(),
   url: text("url").notNull(),
   altText: varchar("altText", { length: 256 }),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 export type SiteImage = typeof siteImages.$inferSelect;
 export type InsertSiteImage = typeof siteImages.$inferInsert;
 
 // ── Merch Products ────────────────────────────────────────────────────────────
-export const merchProducts = mysqlTable("merch_products", {
-  id: int("id").autoincrement().primaryKey(),
+export const merchProducts = pgTable("merch_products", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 256 }).notNull(),
   category: varchar("category", { length: 64 }).notNull(),
-  price: int("price").notNull(),
+  price: integer("price").notNull(),
   imageUrl: text("imageUrl").notNull(),
   description: text("description"),
   sizes: text("sizes").notNull(),
   tags: text("tags").notNull(),
   collectionTag: varchar("collectionTag", { length: 64 }),
   isActive: boolean("isActive").default(true).notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
+  sortOrder: integer("sortOrder").default(0).notNull(),
   shopifyUrl: text("shopifyUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 export type MerchProduct = typeof merchProducts.$inferSelect;
 export type InsertMerchProduct = typeof merchProducts.$inferInsert;
 
 // ── UPI Settings ──────────────────────────────────────────────────────────────
-export const upiSettings = mysqlTable("upi_settings", {
-  id: int("id").autoincrement().primaryKey(),
+export const upiSettings = pgTable("upi_settings", {
+  id: serial("id").primaryKey(),
   upiId: varchar("upiId", { length: 128 }).notNull(),
   accountName: varchar("accountName", { length: 128 }).notNull(),
   qrCodeUrl: text("qrCodeUrl"),
   whatsappNumber: varchar("whatsappNumber", { length: 32 }),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 export type UpiSettings = typeof upiSettings.$inferSelect;
 export type InsertUpiSettings = typeof upiSettings.$inferInsert;

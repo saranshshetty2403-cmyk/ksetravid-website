@@ -9,22 +9,18 @@ import {
   getSiteImages, upsertSiteImage,
   getMerchProducts, upsertMerchProduct, deleteMerchProduct,
   getUpiSettings, saveUpiSettings,
+  seedAdminCredentials, verifyAdminCredentials,
+  updateAdminCredentials, getCurrentAdminUsername,
 } from "./db";
-import {
-  ADMIN_COOKIE,
-  signAdminJWT,
-  verifyAdminJWT,
-  seedInitialCredentials,
-  verifyLogin,
-  replaceCredentials,
-  getCurrentUsername,
-} from "./adminAuth";
+import { ADMIN_COOKIE, signAdminJWT, verifyAdminJWT } from "./adminAuth";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import { seedDatabase } from "./seed";
 
-// Seed default credentials on startup (no-op if file already exists)
-seedInitialCredentials("ksetravid", "Loudbox2026");
+// Seed default credentials on startup (no-op if already seeded in DB)
+seedAdminCredentials("ksetravid", "Loudbox2026").catch(err =>
+  console.error("[AdminAuth] Seed failed:", err)
+);
 
 // Seed all initial hardcoded data into DB on first run (idempotent)
 seedDatabase().catch(err => console.error("[Seed] Failed:", err));
@@ -63,7 +59,7 @@ export const appRouter = router({
     }),
   }),
 
-  // ── Admin Auth ─────────────────────────────────────────────────────────────
+  // ── Admin Auth (DB-backed) ─────────────────────────────────────────────────
   admin: router({
     // Check if the current request has a valid admin session
     check: publicProcedure.query(async ({ ctx }) => {
@@ -73,14 +69,14 @@ export const appRouter = router({
       return { isAdmin: valid };
     }),
 
-    // Login — checks credentials file only, no hardcoded fallback
+    // Login — checks DB credentials only, no hardcoded fallback
     login: publicProcedure
       .input(z.object({
         username: z.string().min(1),
         password: z.string().min(1),
       }))
       .mutation(async ({ input, ctx }) => {
-        const valid = verifyLogin(input.username, input.password);
+        const valid = await verifyAdminCredentials(input.username, input.password);
         if (!valid) {
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid username or password" });
         }
@@ -101,12 +97,13 @@ export const appRouter = router({
     }),
 
     // Get current username (never the password)
-    getUsername: adminProcedure.query(() => {
-      return { username: getCurrentUsername() ?? "ksetravid" };
+    getUsername: adminProcedure.query(async () => {
+      const username = await getCurrentAdminUsername();
+      return { username: username ?? "ksetravid" };
     }),
 
     /**
-     * Permanently replace credentials.
+     * Permanently replace credentials in the DB.
      * After this call, the old username + password are gone forever.
      * The next login MUST use the new credentials.
      */
@@ -115,8 +112,8 @@ export const appRouter = router({
         newUsername: z.string().min(3, "Username must be at least 3 characters"),
         newPassword: z.string().min(6, "Password must be at least 6 characters"),
       }))
-      .mutation(({ input }) => {
-        replaceCredentials(input.newUsername, input.newPassword);
+      .mutation(async ({ input }) => {
+        await updateAdminCredentials(input.newUsername, input.newPassword);
         return { success: true };
       }),
   }),

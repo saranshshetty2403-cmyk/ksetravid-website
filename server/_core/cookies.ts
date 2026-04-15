@@ -1,7 +1,9 @@
-// Minimal request interface — works with both Express and Vercel serverless
-interface MinimalRequest {
+// Minimal request interface — compatible with Express Request and Vercel serverless
+// We only need protocol and headers to determine secure cookie settings
+export interface MinimalRequest {
   protocol?: string;
-  headers?: Record<string, string | string[] | undefined>;
+  // Accept any object with string/string[] values (matches Express IncomingHttpHeaders)
+  headers: { [key: string]: string | string[] | undefined };
 }
 
 export type SessionCookieOptions = {
@@ -16,7 +18,7 @@ export type SessionCookieOptions = {
 function isSecureRequest(req: MinimalRequest): boolean {
   if (req.protocol === "https") return true;
 
-  const forwardedProto = req.headers?.["x-forwarded-proto"];
+  const forwardedProto = req.headers["x-forwarded-proto"];
   if (!forwardedProto) return false;
 
   const protoList = Array.isArray(forwardedProto)

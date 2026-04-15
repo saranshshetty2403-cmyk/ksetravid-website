@@ -340,18 +340,48 @@ function ProductModal({
   );
 }
 
+// ── Hardcoded fallback products (shown when DB/backend is unavailable e.g. Vercel static deploy) ──
+const FALLBACK_PRODUCTS: DbProduct[] = [
+  { id: 1, name: "Anamnesis — Regular Tee", category: "tees", price: 1000, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tee_hd_e9accf90.jpg", description: "Unleash the essence of Ksetravid's Anamnesis with this exclusive graphic T-shirt, crafted by acclaimed artist Dipayan Das. Made for fans who live and breathe heavy music, this tee blends bold artwork with premium comfort — perfect for gigs, festivals, or everyday streetwear.", sizes: "S,M,L,XL,2XL", tags: "Best Seller,graphic,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 1, shopifyUrl: null },
+  { id: 2, name: "Anamnesis — Tank Top", category: "tanks", price: 850, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tank_hd_b3f14fac.jpg", description: "A brutal, premium graphic tank top featuring exclusive Anamnesis artwork by Dipayan Das. Designed for fans who live and breathe heavy music. Lightweight, sleeveless cut — ideal for the pit.", sizes: "S,L,XL,2XL,3XL", tags: "New,graphic,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 2, shopifyUrl: null },
+  { id: 3, name: "Berserker — Shorts", category: "shorts", price: 700, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_shorts_correct_cf0c28e8.png", description: "Berserker-series shorts featuring the signature Ksetravid occult artwork. Satin-finish black fabric with drawstring waist.", sizes: "28,30,32,34,36", tags: "Limited,occult,black", collectionTag: "Berserker", isActive: true, sortOrder: 3, shopifyUrl: null },
+  { id: 4, name: "Berserker — Tank Top", category: "tanks", price: 800, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_tank_hd_afbe5844.png", description: "The Berserker tank top brings the raw power of Ksetravid's occult-metal aesthetic to a sleeveless format. Heavyweight cotton blend, oversized fit.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,occult,black", collectionTag: "Berserker", isActive: true, sortOrder: 4, shopifyUrl: null },
+  { id: 5, name: "Crop Top — She/Her", category: "crop-tops", price: 750, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_crop_top_hd_1e662d72.png", description: "Ksetravid's first crop top — designed for she/her fans who want to carry the band's occult energy in a fitted silhouette.", sizes: "XS,S,M,L,XL", tags: "She/Her,occult,fitted", collectionTag: "Berserker", isActive: true, sortOrder: 5, shopifyUrl: null },
+  { id: 6, name: "Nomad — Shorts", category: "shorts", price: 700, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_shorts_hd_66199aa0.png", description: "Nomad-series shorts with the Ksetravid logo and serpentine artwork. Satin-finish black with drawstring waist.", sizes: "28,30,32,34,36", tags: "Limited,serpent,black", collectionTag: "Nomad", isActive: true, sortOrder: 6, shopifyUrl: null },
+  { id: 7, name: "Nomad — Tank Top", category: "tanks", price: 750, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_tank_hd_78506900.png", description: "The Nomad tank top — sleeveless, raw, and relentless. Featuring the serpent-and-eye motif from the Nomad collection.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,serpent,black", collectionTag: "Nomad", isActive: true, sortOrder: 7, shopifyUrl: null },
+  { id: 8, name: "Ouroboros & Meditate — Tee", category: "tees", price: 1000, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_ouroborus_tee_hd_b56f698d.jpg", description: "The Ouroboros & Meditate tee — a double-sided design featuring the eternal serpent on the front and the meditating figure on the back.", sizes: "S,M,L,XL,2XL", tags: "Signature,occult,black", collectionTag: "Ouroboros", isActive: true, sortOrder: 8, shopifyUrl: null },
+];
+
+const FALLBACK_UPI: UpiData = {
+  upiId: "nikhilraj2110@oksbi",
+  accountName: "T R Nikhil",
+  qrCodeUrl: null,
+  whatsappNumber: FALLBACK_WHATSAPP,
+};
+
 /* ── Main MerchSection ──────────────────────────────────────────── */
 export default function MerchSection() {
-  const { data: dbProducts, isLoading: productsLoading } = trpc.merch.list.useQuery();
-  const { data: upiData } = trpc.upi.get.useQuery();
+  const { data: dbProducts, isLoading: productsLoading } = trpc.merch.list.useQuery(undefined, {
+    retry: 1,
+    retryDelay: 500,
+  });
+  const { data: upiData } = trpc.upi.get.useQuery(undefined, {
+    retry: 1,
+    retryDelay: 500,
+  });
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
   const [checkoutProduct, setCheckoutProduct] = useState<DbProduct | null>(null);
   const [checkoutSize, setCheckoutSize] = useState<string>("");
 
-  // Only show active products
-  const products = (dbProducts ?? []).filter(p => p.isActive);
+  // Use DB products if available, otherwise fall back to hardcoded data
+  // This ensures the merch section always shows products even on static/serverless deploys
+  const products = useMemo(() => {
+    if (dbProducts && dbProducts.length > 0) return dbProducts.filter(p => p.isActive);
+    if (!productsLoading) return FALLBACK_PRODUCTS; // DB unavailable — use fallback
+    return []; // Still loading
+  }, [dbProducts, productsLoading]);
 
   // Dynamically build category tabs from DB products
   const categories = useMemo(() => {
@@ -372,11 +402,12 @@ export default function MerchSection() {
 
   const filtered = activeCategory === "all" ? products : products.filter(p => p.category === activeCategory);
 
-  const upi: UpiData = {
-    upiId: upiData?.upiId ?? "nikhilraj2110@oksbi",
-    accountName: upiData?.accountName ?? "T R Nikhil",
-    qrCodeUrl: upiData?.qrCodeUrl ?? null,
-  };
+  const upi: UpiData = upiData ? {
+    upiId: upiData.upiId,
+    accountName: upiData.accountName,
+    qrCodeUrl: upiData.qrCodeUrl ?? null,
+    whatsappNumber: upiData.whatsappNumber ?? FALLBACK_WHATSAPP,
+  } : FALLBACK_UPI;
 
   function handlePay(product: DbProduct, size: string) {
     setCheckoutProduct(product);

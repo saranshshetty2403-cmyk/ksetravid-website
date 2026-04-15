@@ -7,14 +7,22 @@
       "runtime": "@vercel/node@5.7.7"
     }
   },
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/trpc/:path*",
-      "destination": "/api/trpc/handler"
+      "src": "/api/trpc/(.*)",
+      "dest": "/api/trpc/handler"
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/(.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|map))",
+      "dest": "/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "headers": [

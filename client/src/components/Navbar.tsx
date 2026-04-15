@@ -2,6 +2,7 @@
    KSETRAVID NAVBAR — Cosmic Tech-Death Noir
    Desktop: logo left | nav center | CTA right
    Mobile:  hamburger left | logo CENTERED (large) | spacer right
+   Logo: transparent PNG — no blend mode needed
    ============================================================= */
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
@@ -16,7 +17,7 @@ const NAV_LINKS = [
   { label: "Contact", href: "#contact" },
 ];
 
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg";
+const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -44,23 +45,22 @@ export default function Navbar() {
           borderBottom: scrolled ? "1px solid oklch(1 0 0 / 0.08)" : "none",
         }}
       >
-        {/* ── DESKTOP NAVBAR ── */}
-        <div className="hidden md:flex container items-center justify-between h-20 overflow-hidden">
-          {/* Logo */}
+        {/* ── DESKTOP NAVBAR (md and above) ── */}
+        <div className="hidden md:flex container items-center justify-between h-20">
+          {/* Logo — left */}
           <button
             onClick={() => handleNavClick("#home")}
-            className="flex items-center gap-3 group"
+            className="flex items-center group flex-shrink-0"
             aria-label="Ksetravid Home"
           >
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="h-16 w-auto object-contain"
-              style={{ filter: "brightness(1.1)", mixBlendMode: "screen", maxHeight: "64px" }}
+              className="h-14 w-auto object-contain"
             />
           </button>
 
-          {/* Desktop Nav Links */}
+          {/* Desktop Nav Links — center */}
           <div className="flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <button
@@ -80,12 +80,12 @@ export default function Navbar() {
             ))}
           </div>
 
-          {/* Listen CTA */}
+          {/* Listen CTA — right */}
           <a
             href="https://open.spotify.com/artist/7DAIDyITrD8jeb60tCWQLk"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border flex-shrink-0"
             style={{
               borderColor: "oklch(0.42 0.22 25)",
               color: "oklch(0.87 0.02 80)",
@@ -101,8 +101,8 @@ export default function Navbar() {
           </a>
         </div>
 
-        {/* ── MOBILE NAVBAR ── */}
-        <div className="md:hidden flex items-center justify-between px-4 h-20 relative overflow-hidden">
+        {/* ── MOBILE NAVBAR (below md) ── */}
+        <div className="md:hidden flex items-center h-20 px-4 relative">
           {/* Hamburger — left */}
           <button
             className="p-2 z-10 flex-shrink-0"
@@ -113,7 +113,7 @@ export default function Navbar() {
             {mobileOpen ? <X size={26} /> : <Menu size={26} />}
           </button>
 
-          {/* Logo — absolutely centered so it's always in the middle */}
+          {/* Logo — absolutely centered, large */}
           <button
             onClick={() => handleNavClick("#home")}
             className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
@@ -122,13 +122,13 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="h-16 w-auto object-contain"
-              style={{ filter: "brightness(1.1)", mixBlendMode: "screen", maxHeight: "64px" }}
+              className="h-12 w-auto object-contain"
+              style={{ minWidth: "140px" }}
             />
           </button>
 
-          {/* Spacer — right side mirrors hamburger for visual balance */}
-          <div className="w-10 flex-shrink-0" />
+          {/* Spacer — right mirrors hamburger width for visual balance */}
+          <div className="ml-auto w-10 flex-shrink-0" />
         </div>
       </nav>
 
@@ -142,8 +142,7 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid"
-              className="w-48 object-contain mb-4"
-              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
+              className="w-56 object-contain mb-4"
             />
             {NAV_LINKS.map((link) => (
               <button

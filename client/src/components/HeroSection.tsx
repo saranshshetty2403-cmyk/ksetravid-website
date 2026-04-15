@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_hero_bg-PCFrUDfN4sN3ED5yRqYKQC.webp";
 const BAND_PHOTO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png";
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg";
+const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
 export default function HeroSection() {
   const [visible, setVisible] = useState(false);
@@ -76,7 +76,7 @@ export default function HeroSection() {
               src={LOGO_URL}
               alt="Ksetravid"
               className="w-64 sm:w-72 object-contain mx-auto"
-              style={{ mixBlendMode: "screen", filter: "brightness(1.15)" }}
+              style={{ filter: "brightness(1.05)" }}
             />
           </div>
 
@@ -227,7 +227,7 @@ export default function HeroSection() {
                 src={LOGO_URL}
                 alt="Ksetravid"
                 className="h-48 w-auto object-contain"
-                style={{ filter: "brightness(1.1)", maxWidth: "360px", mixBlendMode: "screen" }}
+                style={{ filter: "brightness(1.05)", maxWidth: "360px" }}
               />
             </div>
 

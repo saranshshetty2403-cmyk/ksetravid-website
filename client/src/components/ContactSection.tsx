@@ -268,10 +268,9 @@ export default function ContactSection() {
             {/* Logo + name */}
             <div className="flex items-center gap-3">
               <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg"
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png"
                 alt="Ksetravid"
                 className="w-8 h-8 object-contain"
-                style={{ mixBlendMode: "screen" }}
               />
               <span className="font-display text-base tracking-widest" style={{ color: "oklch(0.55 0.015 285)" }}>
                 KSETRAVID

@@ -49,7 +49,7 @@ const PRODUCTS = [
     collection: "Berserker",
     category: "shorts",
     price: 700,
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_shorts_hd_ed9b8fb9.png",
+    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_shorts_correct_cf0c28e8.png",
     sizes: ["28", "30", "32", "34", "36"],
     badge: "Limited",
     badgeColor: "oklch(0.62 0.18 60)",

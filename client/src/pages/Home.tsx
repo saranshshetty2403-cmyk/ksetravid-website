@@ -1,25 +1,38 @@
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { Streamdown } from 'streamdown';
+/* =============================================================
+   KSETRAVID — MAIN HOME PAGE
+   Assembles all sections in order with smooth scroll
+   Design: Cosmic Tech-Death Noir
+   Sections: Hero → About → Music → Videos → Gallery → Tour → Themes → Merch → Press → Contact
+   ============================================================= */
+import Navbar from "@/components/Navbar";
+import HeroSection from "@/components/HeroSection";
+import AboutSection from "@/components/AboutSection";
+import MusicSection from "@/components/MusicSection";
+import VideosSection from "@/components/VideosSection";
+import GallerySection from "@/components/GallerySection";
+import TourSection from "@/components/TourSection";
+import LyricsThemesSection from "@/components/LyricsThemesSection";
+import MerchSection from "@/components/MerchSection";
+import PressSection from "@/components/PressSection";
+import ContactSection from "@/components/ContactSection";
 
-/**
- * All content in this page are only for example, replace with your own feature implementation
- * When building pages, remember your instructions in Frontend Best Practices, Design Guide and Common Pitfalls
- */
 export default function Home() {
-  // If theme is switchable in App.tsx, we can implement theme toggling like this:
-  // const { theme, toggleTheme } = useTheme();
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <main>
-        {/* Example: lucide-react for icons */}
-        <Loader2 className="animate-spin" />
-        Example Page
-        {/* Example: Streamdown for markdown rendering */}
-        <Streamdown>Any **markdown** content</Streamdown>
-        <Button variant="default">Example Button</Button>
-      </main>
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: "oklch(0.08 0.005 285)", color: "oklch(0.87 0.02 80)" }}
+    >
+      <Navbar />
+      <HeroSection />
+      <AboutSection />
+      <MusicSection />
+      <VideosSection />
+      <GallerySection />
+      <TourSection />
+      <LyricsThemesSection />
+      <MerchSection />
+      <PressSection />
+      <ContactSection />
     </div>
   );
 }

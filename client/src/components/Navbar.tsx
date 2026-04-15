@@ -45,7 +45,7 @@ export default function Navbar() {
         }}
       >
         {/* ── DESKTOP NAVBAR ── */}
-        <div className="hidden md:flex container items-center justify-between h-20">
+        <div className="hidden md:flex container items-center justify-between h-20 overflow-hidden">
           {/* Logo */}
           <button
             onClick={() => handleNavClick("#home")}
@@ -55,8 +55,8 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="h-24 w-auto object-contain"
-              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
+              className="h-16 w-auto object-contain"
+              style={{ filter: "brightness(1.1)", mixBlendMode: "screen", maxHeight: "64px" }}
             />
           </button>
 
@@ -102,7 +102,7 @@ export default function Navbar() {
         </div>
 
         {/* ── MOBILE NAVBAR ── */}
-        <div className="md:hidden flex items-center justify-between px-4 h-20 relative">
+        <div className="md:hidden flex items-center justify-between px-4 h-20 relative overflow-hidden">
           {/* Hamburger — left */}
           <button
             className="p-2 z-10 flex-shrink-0"
@@ -122,8 +122,8 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="w-40 object-contain"
-              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
+              className="h-16 w-auto object-contain"
+              style={{ filter: "brightness(1.1)", mixBlendMode: "screen", maxHeight: "64px" }}
             />
           </button>
 

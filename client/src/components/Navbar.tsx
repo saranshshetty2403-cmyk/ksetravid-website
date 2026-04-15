@@ -56,7 +56,7 @@ export default function Navbar() {
               src={LOGO_URL}
               alt="Ksetravid Logo"
               className="h-24 w-auto object-contain"
-              style={{ filter: "brightness(1.1)" }}
+              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
             />
           </button>
 
@@ -123,7 +123,7 @@ export default function Navbar() {
               src={LOGO_URL}
               alt="Ksetravid Logo"
               className="w-40 object-contain"
-              style={{ filter: "brightness(1.1)" }}
+              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
             />
           </button>
 
@@ -143,7 +143,7 @@ export default function Navbar() {
               src={LOGO_URL}
               alt="Ksetravid"
               className="w-48 object-contain mb-4"
-              style={{ filter: "brightness(1.1)" }}
+              style={{ filter: "brightness(1.1)", mixBlendMode: "screen" }}
             />
             {NAV_LINKS.map((link) => (
               <button

@@ -98,7 +98,7 @@ export default function HeroSection() {
                 src={LOGO_URL}
                 alt="Ksetravid"
                 className="h-24 sm:h-32 md:h-40 lg:h-48 w-auto object-contain"
-                style={{ filter: "brightness(1.1)", maxWidth: "320px" }}
+                style={{ filter: "brightness(1.1)", maxWidth: "320px", mixBlendMode: "screen" }}
               />
             </div>
 

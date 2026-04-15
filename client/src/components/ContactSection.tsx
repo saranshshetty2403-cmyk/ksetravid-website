@@ -271,6 +271,7 @@ export default function ContactSection() {
                 src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg"
                 alt="Ksetravid"
                 className="w-8 h-8 object-contain"
+                style={{ mixBlendMode: "screen" }}
               />
               <span className="font-display text-base tracking-widest" style={{ color: "oklch(0.55 0.015 285)" }}>
                 KSETRAVID

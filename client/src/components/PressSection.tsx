@@ -49,16 +49,16 @@ export default function PressSection() {
   return (
     <section
       id="press"
-      className="relative py-24"
+      className="relative py-14 md:py-24"
       style={{ backgroundColor: "oklch(0.06 0.005 285)" }}
     >
       <div className="container">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ Media Coverage
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             PRESS
           </h2>
           <div className="crimson-rule" />
@@ -72,7 +72,7 @@ export default function PressSection() {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block border p-6 transition-all duration-200 group"
+              className="block border p-4 md:p-6 transition-all duration-200 group"
               style={{
                 borderColor: "oklch(1 0 0 / 0.08)",
                 backgroundColor: "oklch(0.10 0.006 285)",
@@ -125,7 +125,7 @@ export default function PressSection() {
 
         {/* Press Kit CTA */}
         <div
-          className="p-8 border text-center"
+          className="p-6 md:p-8 border text-center"
           style={{
             borderColor: "oklch(0.42 0.22 25 / 0.3)",
             backgroundColor: "oklch(0.42 0.22 25 / 0.04)",

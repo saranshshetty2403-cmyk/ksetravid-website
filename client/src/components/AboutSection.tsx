@@ -29,7 +29,7 @@ export default function AboutSection() {
   return (
     <section
       id="about"
-      className="relative py-24 overflow-hidden"
+      className="relative py-14 md:py-24 overflow-hidden"
       style={{ backgroundColor: "oklch(0.08 0.005 285)" }}
     >
       {/* Background */}
@@ -43,27 +43,27 @@ export default function AboutSection() {
 
       <div className="container relative z-10">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ The Band
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             ABOUT
           </h2>
           <div className="crimson-rule" />
         </div>
 
         {/* Bio + Photo layout */}
-        <div className="grid lg:grid-cols-2 gap-16 mb-20 items-center">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 mb-12 md:mb-20 items-center">
           {/* Bio text */}
           <div>
-            <p className="font-body text-lg leading-relaxed mb-6" style={{ color: "oklch(0.75 0.015 80)" }}>
+            <p className="font-body text-base md:text-lg leading-relaxed mb-6" style={{ color: "oklch(0.75 0.015 80)" }}>
               Ksetravid emerged from Bangalore in 2020, born from the isolation of a global pandemic. Musicians scattered across India found each other online, united by a shared obsession with technical death metal and a desire to explore the darker corridors of human consciousness.
             </p>
-            <p className="font-body text-lg leading-relaxed mb-6" style={{ color: "oklch(0.75 0.015 80)" }}>
+            <p className="font-body text-base md:text-lg leading-relaxed mb-6" style={{ color: "oklch(0.75 0.015 80)" }}>
               The name <em style={{ color: "oklch(0.87 0.02 80)" }}>Ksetravid</em> — derived from the Sanskrit <em>Kshetrajna</em>, meaning "the knower of the field" — reflects the band's conceptual roots in the Upanishads. Their music is a vehicle for self-introspection: how one learns about themselves by seeking what lies within, and what society reflects upon them.
             </p>
-            <p className="font-body text-lg leading-relaxed mb-8" style={{ color: "oklch(0.75 0.015 80)" }}>
+            <p className="font-body text-base md:text-lg leading-relaxed mb-8" style={{ color: "oklch(0.75 0.015 80)" }}>
               Fast-paced riffs, complex rhythms, and a voice full of angst and fury — Ksetravid channels the full bandwidth of modern extreme metal. Each member brings a distinct musical heritage, and that collision of influences is precisely what makes their sound impossible to categorize cleanly.
             </p>
 

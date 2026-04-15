@@ -61,23 +61,23 @@ export default function GallerySection() {
   return (
     <section
       id="gallery"
-      className="relative py-24"
+      className="relative py-14 md:py-24"
       style={{ backgroundColor: "oklch(0.06 0.005 285)" }}
     >
       <div className="container">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ Photos
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             GALLERY
           </h2>
           <div className="crimson-rule" />
         </div>
 
         {/* Photo grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 auto-rows-[200px]">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 auto-rows-[110px] sm:auto-rows-[150px] md:auto-rows-[200px]">
           {PHOTOS.map((photo, index) => (
             <div
               key={photo.id}
@@ -166,7 +166,7 @@ export default function GallerySection() {
             <ChevronLeft size={32} />
           </button>
           <div
-            className="max-w-4xl max-h-[85vh] mx-16"
+            className="max-w-4xl max-h-[85vh] mx-12 md:mx-16"
             onClick={(e) => e.stopPropagation()}
           >
             <img

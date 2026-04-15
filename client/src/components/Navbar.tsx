@@ -1,8 +1,7 @@
 /* =============================================================
    KSETRAVID NAVBAR — Cosmic Tech-Death Noir
-   Sticky nav that transitions from transparent to solid on scroll.
-   Red underline hover animation on nav links.
-   Logo: New "Triangle Eye" version (2024–2026)
+   Desktop: logo left | nav center | CTA right
+   Mobile:  hamburger left | logo CENTERED (large) | spacer right
    ============================================================= */
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
@@ -45,7 +44,8 @@ export default function Navbar() {
           borderBottom: scrolled ? "1px solid oklch(1 0 0 / 0.08)" : "none",
         }}
       >
-        <div className="container flex items-center justify-between h-16 md:h-20">
+        {/* ── DESKTOP NAVBAR ── */}
+        <div className="hidden md:flex container items-center justify-between h-20">
           {/* Logo */}
           <button
             onClick={() => handleNavClick("#home")}
@@ -55,13 +55,13 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="h-10 w-auto md:h-12 object-contain"
+              className="h-24 w-auto object-contain"
               style={{ filter: "brightness(1.1)" }}
             />
           </button>
 
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* Desktop Nav Links */}
+          <div className="flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <button
                 key={link.href}
@@ -85,7 +85,7 @@ export default function Navbar() {
             href="https://open.spotify.com/artist/7DAIDyITrD8jeb60tCWQLk"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden md:flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border"
             style={{
               borderColor: "oklch(0.42 0.22 25)",
               color: "oklch(0.87 0.02 80)",
@@ -99,16 +99,36 @@ export default function Navbar() {
           >
             ▶ Listen
           </a>
+        </div>
 
-          {/* Mobile Menu Toggle */}
+        {/* ── MOBILE NAVBAR ── */}
+        <div className="md:hidden flex items-center justify-between px-4 h-20 relative">
+          {/* Hamburger — left */}
           <button
-            className="md:hidden p-2"
+            className="p-2 z-10 flex-shrink-0"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
             style={{ color: "oklch(0.87 0.02 80)" }}
           >
-            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            {mobileOpen ? <X size={26} /> : <Menu size={26} />}
           </button>
+
+          {/* Logo — absolutely centered so it's always in the middle */}
+          <button
+            onClick={() => handleNavClick("#home")}
+            className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
+            aria-label="Ksetravid Home"
+          >
+            <img
+              src={LOGO_URL}
+              alt="Ksetravid Logo"
+              className="w-40 object-contain"
+              style={{ filter: "brightness(1.1)" }}
+            />
+          </button>
+
+          {/* Spacer — right side mirrors hamburger for visual balance */}
+          <div className="w-10 flex-shrink-0" />
         </div>
       </nav>
 
@@ -122,7 +142,7 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid"
-              className="h-16 w-auto object-contain mb-4"
+              className="w-48 object-contain mb-4"
               style={{ filter: "brightness(1.1)" }}
             />
             {NAV_LINKS.map((link) => (

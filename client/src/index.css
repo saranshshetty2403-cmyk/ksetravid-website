@@ -153,6 +153,14 @@
     background: oklch(0.52 0.24 25);
   }
 
+  /* Mobile: remove tap highlight and improve touch targets */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+  img {
+    max-width: 100%;
+    height: auto;
+  }
   /* Selection */
   ::selection {
     background: oklch(0.42 0.22 25 / 0.4);

@@ -39,7 +39,7 @@ export default function TourSection() {
   return (
     <section
       id="tour"
-      className="relative py-24 overflow-hidden"
+      className="relative py-14 md:py-24 overflow-hidden"
       style={{ backgroundColor: "oklch(0.08 0.005 285)" }}
     >
       {/* Background */}
@@ -59,11 +59,11 @@ export default function TourSection() {
 
       <div className="container relative z-10">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ Live
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             TOUR DATES
           </h2>
           <div className="crimson-rule" />
@@ -97,57 +97,44 @@ export default function TourSection() {
             Past Shows
           </h3>
 
-          <div
-            className="border"
-            style={{ borderColor: "oklch(1 0 0 / 0.08)" }}
-          >
-            {/* Table header */}
+          {/* Desktop table */}
+          <div className="hidden md:block border" style={{ borderColor: "oklch(1 0 0 / 0.08)" }}>
             <div
               className="grid grid-cols-4 px-6 py-3 border-b"
-              style={{
-                borderColor: "oklch(1 0 0 / 0.08)",
-                backgroundColor: "oklch(0.10 0.006 285)",
-              }}
+              style={{ borderColor: "oklch(1 0 0 / 0.08)", backgroundColor: "oklch(0.10 0.006 285)" }}
             >
               {["Date", "City", "Venue", "Tour"].map((col) => (
-                <span
-                  key={col}
-                  className="font-mono-tech text-xs tracking-widest uppercase"
-                  style={{ color: "oklch(0.45 0.015 285)" }}
-                >
+                <span key={col} className="font-mono-tech text-xs tracking-widest uppercase" style={{ color: "oklch(0.45 0.015 285)" }}>
                   {col}
                 </span>
               ))}
             </div>
-
-            {/* Rows */}
             {PAST_SHOWS.map((show, i) => (
               <div
                 key={i}
                 className="grid grid-cols-4 px-6 py-4 border-b transition-colors duration-200"
-                style={{
-                  borderColor: "oklch(1 0 0 / 0.05)",
-                  backgroundColor: "transparent",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.42 0.22 25 / 0.05)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-                }}
+                style={{ borderColor: "oklch(1 0 0 / 0.05)", backgroundColor: "transparent" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.42 0.22 25 / 0.05)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; }}
               >
-                <span className="font-mono-tech text-sm" style={{ color: "oklch(0.55 0.015 285)" }}>
-                  {show.date}
-                </span>
-                <span className="font-display text-base" style={{ color: "oklch(0.87 0.02 80)" }}>
-                  {show.city}
-                </span>
-                <span className="font-body text-sm" style={{ color: "oklch(0.65 0.015 285)" }}>
-                  {show.venue}
-                </span>
-                <span className="font-mono-tech text-xs" style={{ color: "oklch(0.45 0.015 285)" }}>
-                  {show.tour}
-                </span>
+                <span className="font-mono-tech text-sm" style={{ color: "oklch(0.55 0.015 285)" }}>{show.date}</span>
+                <span className="font-display text-base" style={{ color: "oklch(0.87 0.02 80)" }}>{show.city}</span>
+                <span className="font-body text-sm" style={{ color: "oklch(0.65 0.015 285)" }}>{show.venue}</span>
+                <span className="font-mono-tech text-xs" style={{ color: "oklch(0.45 0.015 285)" }}>{show.tour}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden flex flex-col gap-3">
+            {PAST_SHOWS.map((show, i) => (
+              <div key={i} className="border p-4" style={{ borderColor: "oklch(1 0 0 / 0.08)", backgroundColor: "oklch(0.10 0.006 285)" }}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className="font-display text-base" style={{ color: "oklch(0.87 0.02 80)" }}>{show.city}</span>
+                  <span className="font-mono-tech text-xs px-2 py-0.5 shrink-0" style={{ backgroundColor: "oklch(0.42 0.22 25 / 0.2)", color: "oklch(0.52 0.24 25)" }}>{show.date}</span>
+                </div>
+                <p className="font-body text-sm mb-1" style={{ color: "oklch(0.65 0.015 285)" }}>{show.venue}</p>
+                <p className="font-mono-tech text-xs" style={{ color: "oklch(0.45 0.015 285)" }}>{show.tour}</p>
               </div>
             ))}
           </div>

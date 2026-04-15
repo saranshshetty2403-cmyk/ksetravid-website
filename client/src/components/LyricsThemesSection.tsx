@@ -45,16 +45,16 @@ const THEMES = [
 export default function LyricsThemesSection() {
   return (
     <section
-      className="relative py-24"
+      className="relative py-14 md:py-24"
       style={{ backgroundColor: "oklch(0.07 0.005 285)" }}
     >
       <div className="container">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ Conceptual Depth
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             THEMES
           </h2>
           <div className="crimson-rule" />
@@ -106,14 +106,14 @@ export default function LyricsThemesSection() {
 
         {/* Quote */}
         <div
-          className="mt-16 p-8 md:p-12 border-l-4 relative"
+          className="mt-10 md:mt-16 p-5 md:p-8 lg:p-12 border-l-4 relative"
           style={{
             borderColor: "oklch(0.42 0.22 25)",
             backgroundColor: "oklch(0.42 0.22 25 / 0.04)",
           }}
         >
           <p
-            className="font-body text-xl md:text-2xl leading-relaxed italic"
+            className="font-body text-base md:text-xl lg:text-2xl leading-relaxed italic"
             style={{ color: "oklch(0.75 0.015 80)" }}
           >
             "The project finds its conceptual roots in the Upanishads and the music aims to cover realism to portray the darker side of human life. The band takes self-introspection through a bandwidth of thoughts — how one learns about themselves by seeking what's inside and what society reflects upon them."

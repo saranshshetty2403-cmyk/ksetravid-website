@@ -166,8 +166,9 @@ function ProductModal({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-3xl overflow-hidden"
+        className="relative w-full max-w-3xl overflow-y-auto"
         style={{
+          maxHeight: "90vh",
           backgroundColor: "oklch(0.09 0.006 285)",
           border: "1px solid oklch(0.52 0.24 25 / 0.35)",
           boxShadow: "0 0 60px oklch(0.52 0.24 25 / 0.15)",
@@ -207,7 +208,7 @@ function ProductModal({
           </div>
 
           {/* Product info */}
-          <div className="p-8 flex flex-col">
+          <div className="p-5 md:p-8 flex flex-col">
             {/* Badge */}
             <span
               className="font-mono-tech text-xs tracking-widest uppercase px-2 py-1 self-start mb-4"
@@ -330,18 +331,9 @@ export default function MerchSection() {
 
       <section
         id="merch"
-        className="relative py-24"
+        className="relative py-14 md:py-24"
         style={{ backgroundColor: "oklch(0.07 0.005 285)" }}
       >
-        {/* Diagonal top edge */}
-        <div
-          className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
-          style={{
-            background: "oklch(0.09 0.006 285)",
-            clipPath: "polygon(0 0, 100% 0, 100% 0%, 0 100%)",
-          }}
-        />
-
         <div className="container relative">
           {/* ── Section Header ─────────────────────────────────── */}
           <div className="mb-12">
@@ -354,7 +346,7 @@ export default function MerchSection() {
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <h2
-                  className="font-display text-5xl md:text-6xl mb-4"
+                  className="font-display text-4xl md:text-5xl lg:text-6xl mb-4"
                   style={{ color: "oklch(0.93 0.015 80)" }}
                 >
                   MERCH STORE
@@ -563,7 +555,7 @@ export default function MerchSection() {
 
           {/* ── Store CTA Banner ────────────────────────────────── */}
           <div
-            className="mt-16 p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6"
+            className="mt-16 p-6 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left"
             style={{
               backgroundColor: "oklch(0.10 0.006 285)",
               border: "1px solid oklch(0.52 0.24 25 / 0.20)",

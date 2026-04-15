@@ -89,22 +89,22 @@ export default function ContactSection() {
       {/* Contact Section */}
       <section
         id="contact"
-        className="relative py-24"
+        className="relative py-14 md:py-24"
         style={{ backgroundColor: "oklch(0.08 0.005 285)" }}
       >
         <div className="container">
           {/* Section header */}
-          <div className="mb-16">
+          <div className="mb-10 md:mb-16">
             <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
               ◆ Get in Touch
             </p>
-            <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+            <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
               CONTACT
             </h2>
             <div className="crimson-rule" />
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-16">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
             {/* Left: Social + Info */}
             <div>
               <p className="font-body text-lg leading-relaxed mb-8" style={{ color: "oklch(0.68 0.015 80)" }}>
@@ -119,7 +119,7 @@ export default function ContactSection() {
               </p>
 
               {/* Social grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {SOCIAL_LINKS.map((social) => {
                   const Icon = social.icon;
                   return (
@@ -160,7 +160,7 @@ export default function ContactSection() {
             {/* Right: Contact Form */}
             <div>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="font-mono-tech text-xs tracking-widest uppercase block mb-2" style={{ color: "oklch(0.55 0.015 285)" }}>
                       Name
@@ -264,7 +264,7 @@ export default function ContactSection() {
         }}
       >
         <div className="container">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
             {/* Logo + name */}
             <div className="flex items-center gap-3">
               <img
@@ -289,7 +289,7 @@ export default function ContactSection() {
 
             {/* Copyright */}
             <p className="font-mono-tech text-xs" style={{ color: "oklch(0.40 0.01 285)" }}>
-              © 2024 Ksetravid. Bangalore, India.
+              © 2026 Ksetravid. Bangalore, India.
             </p>
           </div>
 

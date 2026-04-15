@@ -15,7 +15,7 @@ const RELEASES = [
     description: "The fourth and most recent single from Ksetravid. A journey into twisted realities, metaphysical recollection, and the fractured nature of memory. The artwork — a stone figure with a shattered, glowing head — embodies the theme of consciousness torn between worlds.",
     spotify: "https://open.spotify.com/track/4F6v1MYsJjBSjPBgkFHcAl",
     bandcamp: "https://ksetravid.bandcamp.com/track/anamnesis",
-    youtube: "https://www.youtube.com/watch?v=ksetravid-anamnesis",
+    youtube: "https://www.youtube.com/watch?v=54oXZuvPpaI",
     spotifyEmbed: "4F6v1MYsJjBSjPBgkFHcAl",
     themes: ["Twisted Reality", "Metaphysics", "Memory", "Consciousness"],
   },
@@ -28,7 +28,7 @@ const RELEASES = [
     description: "Released May 3, 2024. An exploration of intuition, higher consciousness, and the awakening of the third eye — the Ajna chakra. The artwork, a massive eye with a yin-yang pupil, visualizes the duality of sight: what we see and what we perceive beyond the physical.",
     spotify: "https://open.spotify.com/track/ksetravid-thirdeye",
     bandcamp: "https://ksetravid.bandcamp.com/track/the-third-eye",
-    youtube: "https://www.youtube.com/watch?v=ksetravid-thirdeye",
+    youtube: "https://www.youtube.com/watch?v=72yigqf3jE4",
     themes: ["Consciousness", "Mysticism", "Intuition", "Awakening"],
   },
   {
@@ -40,7 +40,7 @@ const RELEASES = [
     description: "The second single, featuring an official music video with all band members. An acerbic examination of organized religion and the failings of dogmatic belief systems. Rolling Stone India praised vocalist Sunneith Revankar's aggressive delivery, aided by Ezra Helios on bass and Jerry Nelson on drums.",
     spotify: "https://open.spotify.com/track/ksetravid-staticbelief",
     bandcamp: "https://ksetravid.bandcamp.com/track/static-belief-system",
-    youtube: "https://www.youtube.com/watch?v=ksetravid-staticbelief",
+    youtube: "https://www.youtube.com/watch?v=W4nXoQZfRK0",
     themes: ["Religion", "Dogma", "False Belief", "Critique"],
   },
   {
@@ -52,7 +52,7 @@ const RELEASES = [
     description: "The debut single. A catharsis born from deep-seated illness — both personal and societal. Conceptually rooted in the Upanishads, the music covers realism to portray the darker side of human life. The intricate occult artwork sets the visual tone for everything that followed.",
     spotify: "https://open.spotify.com/track/ksetravid-manmadecrisis",
     bandcamp: "https://ksetravid.bandcamp.com/track/man-made-crisis",
-    youtube: "https://www.youtube.com/watch?v=ksetravid-manmadecrisis",
+    youtube: "https://www.youtube.com/watch?v=Vnlm04RF5Mo",
     themes: ["Illness", "Society", "Upanishads", "Human Darkness"],
   },
 ];
@@ -70,16 +70,16 @@ export default function MusicSection() {
   return (
     <section
       id="music"
-      className="relative py-24"
+      className="relative py-14 md:py-24"
       style={{ backgroundColor: "oklch(0.06 0.005 285)" }}
     >
       <div className="container">
         {/* Section header */}
-        <div className="mb-16">
+        <div className="mb-10 md:mb-16">
           <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.52 0.24 25)" }}>
             ◆ Discography
           </p>
-          <h2 className="font-display text-5xl md:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
+          <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
             MUSIC
           </h2>
           <div className="crimson-rule" />
@@ -87,7 +87,7 @@ export default function MusicSection() {
 
         {/* Upcoming Album Banner */}
         <div
-          className="mb-16 p-6 md:p-8 border relative overflow-hidden"
+          className="mb-10 md:mb-16 p-5 md:p-8 border relative overflow-hidden"
           style={{
             borderColor: "oklch(0.62 0.18 60 / 0.4)",
             backgroundColor: "oklch(0.62 0.18 60 / 0.05)",
@@ -102,7 +102,7 @@ export default function MusicSection() {
               <p className="font-mono-tech text-xs tracking-widest uppercase mb-2" style={{ color: "oklch(0.62 0.18 60)" }}>
                 ⚡ {UPCOMING_ALBUM.type} — {UPCOMING_ALBUM.status}
               </p>
-              <h3 className="font-display text-3xl md:text-4xl mb-3" style={{ color: "oklch(0.93 0.015 80)" }}>
+              <h3 className="font-display text-2xl md:text-3xl md:text-4xl mb-3" style={{ color: "oklch(0.93 0.015 80)" }}>
                 {UPCOMING_ALBUM.title}
               </h3>
               <p className="font-body text-base leading-relaxed" style={{ color: "oklch(0.65 0.015 285)" }}>
@@ -122,7 +122,7 @@ export default function MusicSection() {
         </div>
 
         {/* Main discography layout */}
-        <div className="grid lg:grid-cols-5 gap-8">
+        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
           {/* Release list — left sidebar */}
           <div className="lg:col-span-2 space-y-2">
             {RELEASES.map((release) => (
@@ -172,7 +172,7 @@ export default function MusicSection() {
               }}
             >
               {/* Artwork + title */}
-              <div className="flex gap-6 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-6">
                 <img
                   src={activeRelease.artwork}
                   alt={activeRelease.title}
@@ -208,21 +208,41 @@ export default function MusicSection() {
                 {activeRelease.description}
               </p>
 
-              {/* Spotify Embed */}
-              {activeRelease.id === "anamnesis" && (
-                <div className="mb-6">
-                  <iframe
-                    src="https://open.spotify.com/embed/track/4F6v1MYsJjBSjPBgkFHcAl?utm_source=generator&theme=0"
-                    width="100%"
-                    height="80"
-                    frameBorder="0"
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                    loading="lazy"
-                    title="Anamnesis on Spotify"
-                    style={{ borderRadius: "2px" }}
-                  />
+              {/* Listen Now Card */}
+              <div
+                className="mb-6 p-4 flex items-center gap-4"
+                style={{
+                  backgroundColor: "oklch(0.12 0.008 285)",
+                  border: "1px solid oklch(1 0 0 / 0.08)",
+                }}
+              >
+                <div
+                  className="w-12 h-12 flex-shrink-0 flex items-center justify-center"
+                  style={{ backgroundColor: "oklch(0.42 0.22 25 / 0.15)", border: "1px solid oklch(0.52 0.24 25 / 0.3)" }}
+                >
+                  <Play size={20} style={{ color: "oklch(0.52 0.24 25)" }} />
                 </div>
-              )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-sm truncate" style={{ color: "oklch(0.87 0.02 80)" }}>
+                    {activeRelease.title}
+                  </p>
+                  <p className="font-mono-tech text-xs" style={{ color: "oklch(0.45 0.015 285)" }}>
+                    {activeRelease.type} · {activeRelease.year} · Ksetravid
+                  </p>
+                </div>
+                <a
+                  href={activeRelease.spotify}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 flex items-center gap-2 px-4 py-2 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200"
+                  style={{ backgroundColor: "oklch(0.45 0.18 145)", color: "oklch(0.97 0.005 80)" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.85"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
+                >
+                  <Music size={12} />
+                  <span className="hidden sm:inline">Play on</span> Spotify
+                </a>
+              </div>
 
               {/* Streaming links */}
               <div className="flex flex-wrap gap-3">
@@ -257,7 +277,7 @@ export default function MusicSection() {
                   Bandcamp
                 </a>
                 <a
-                  href="https://www.youtube.com/@ksetravidmusic"
+                  href={activeRelease.youtube}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200"

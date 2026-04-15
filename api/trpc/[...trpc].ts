@@ -1,32 +1,17 @@
 /**
  * Vercel Serverless Function — tRPC handler
- * All /api/trpc/* requests are handled here.
- * This file is the entry point for the Vercel deployment.
+ * 
+ * IMPORTANT: This file is pre-bundled by esbuild during `pnpm build`.
+ * The bundled output at dist/api/trpc/handler.js is what Vercel actually serves.
+ * 
+ * @vercel/node cannot resolve TypeScript path aliases or relative .ts imports,
+ * so we use esbuild to bundle everything into a single file.
  */
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-
-// Wrap the import in a try/catch to surface module-load errors
-let appRouter: any = null;
-let importError: Error | null = null;
-
-try {
-  const mod = await import("../../server/routers.js");
-  appRouter = mod.appRouter;
-} catch (err: any) {
-  importError = err;
-  console.error("[Vercel] Failed to import appRouter:", err?.message, err?.stack);
-}
+import { appRouter } from "../../server/routers";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // If the router failed to load, return a descriptive error
-  if (importError || !appRouter) {
-    const msg = importError?.message ?? "appRouter not loaded";
-    console.error("[Vercel] Handler called but router unavailable:", msg);
-    res.status(500).json({ error: "Server initialization failed", detail: msg });
-    return;
-  }
-
   // Convert Vercel req/res to Fetch API Request/Response for tRPC fetch adapter
   const url = `https://${req.headers.host}${req.url}`;
 
@@ -69,11 +54,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         return {
-          user: null, // Manus OAuth not used on Vercel
+          user: null,
           req: {
             ...req,
             cookies,
-            protocol: req.headers["x-forwarded-proto"] as string ?? "https",
+            protocol: (req.headers["x-forwarded-proto"] as string) ?? "https",
           } as any,
           res: {
             cookie: (name: string, value: string, options: any) => {
@@ -107,7 +92,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Write response back to Vercel
     res.status(response.status);
     response.headers.forEach((value, key) => {
-      res.setHeader(key, value);
+      if (key.toLowerCase() !== "transfer-encoding") {
+        res.setHeader(key, value);
+      }
     });
     const responseBody = await response.text();
     res.send(responseBody);

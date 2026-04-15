@@ -18,9 +18,14 @@ let _db: ReturnType<typeof drizzle> | null = null;
 
 export function getDb() {
   if (_db) return _db;
-  const url = process.env.KSETRAVID_DB_URL || process.env.NEON_DATABASE_URL || process.env.DATABASE_URL;
+  // Only use Postgres/Neon URLs — skip MySQL/TiDB (incompatible with neon-http)
+  const url = process.env.KSETRAVID_DB_URL || process.env.NEON_DATABASE_URL;
   if (!url) {
-    console.warn("[Database] No DATABASE_URL set — DB unavailable");
+    console.warn("[Database] No KSETRAVID_DB_URL or NEON_DATABASE_URL set — DB unavailable");
+    return null;
+  }
+  if (url.startsWith("mysql://") || url.startsWith("mysql2://")) {
+    console.warn("[Database] MySQL URL detected — Neon HTTP requires a PostgreSQL URL");
     return null;
   }
   try {

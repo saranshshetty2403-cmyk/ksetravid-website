@@ -6,7 +6,6 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { appRouter } from "../../server/routers";
-import { createContext } from "../../server/_core/context";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Convert Vercel req/res to Fetch API Request/Response for tRPC fetch adapter

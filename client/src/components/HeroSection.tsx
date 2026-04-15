@@ -2,12 +2,13 @@
    KSETRAVID HERO — Full-bleed cosmic eye background
    Asymmetric layout: text left, band photo right
    Staggered text entrance animations
+   Logo: New "Triangle Eye" version (2024–2026)
    ============================================================= */
 import { useEffect, useRef, useState } from "react";
 
 const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_hero_bg-PCFrUDfN4sN3ED5yRqYKQC.webp";
 const BAND_PHOTO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png";
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/logo_square_3255306f.jpg";
+const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg";
 
 export default function HeroSection() {
   const [visible, setVisible] = useState(false);
@@ -86,35 +87,23 @@ export default function HeroSection() {
             </span>
           </div>
 
-          {/* Logo + Band Name */}
+          {/* New Logo */}
           <div
-            className={`flex items-center gap-4 mb-4 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+            className={`mb-6 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
             style={{ transitionDelay: "0.2s" }}
           >
             <img
               src={LOGO_URL}
               alt="Ksetravid"
-              className="w-16 h-16 md:w-20 md:h-20 object-contain"
-              style={{ filter: "brightness(1.15)" }}
+              className="h-24 md:h-32 w-auto object-contain"
+              style={{ filter: "brightness(1.1)", maxWidth: "380px" }}
             />
           </div>
 
-          {/* Main headline */}
-          <h1
-            className={`font-display text-6xl md:text-7xl lg:text-8xl leading-none mb-4 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-            style={{
-              color: "oklch(0.93 0.015 80)",
-              transitionDelay: "0.3s",
-              textShadow: "0 0 60px oklch(0.42 0.22 25 / 0.3)",
-            }}
-          >
-            KSETRAVID
-          </h1>
-
-          {/* Genre tag */}
+          {/* Genre tags */}
           <div
             className={`flex flex-wrap gap-2 mb-6 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-            style={{ transitionDelay: "0.4s" }}
+            style={{ transitionDelay: "0.35s" }}
           >
             {["Progressive Death Metal", "Tech-Death", "Deathcore"].map((tag) => (
               <span
@@ -136,7 +125,7 @@ export default function HeroSection() {
             className={`font-body text-lg md:text-xl leading-relaxed mb-8 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
             style={{
               color: "oklch(0.70 0.015 80)",
-              transitionDelay: "0.5s",
+              transitionDelay: "0.45s",
               maxWidth: "520px",
               fontStyle: "italic",
             }}
@@ -211,9 +200,8 @@ export default function HeroSection() {
           style={{ transitionDelay: "0.4s" }}
         >
           <div className="relative">
-            {/* Crimson glow behind photo */}
             <div
-              className="absolute inset-0 rounded-sm"
+              className="absolute inset-0"
               style={{
                 background: "radial-gradient(ellipse at center, oklch(0.42 0.22 25 / 0.25) 0%, transparent 70%)",
                 transform: "scale(1.1)",
@@ -243,7 +231,6 @@ export default function HeroSection() {
           className="w-px h-12"
           style={{
             background: "linear-gradient(to bottom, oklch(0.45 0.015 285), transparent)",
-            animation: "fade-up 1.5s ease-in-out infinite alternate",
           }}
         />
       </div>

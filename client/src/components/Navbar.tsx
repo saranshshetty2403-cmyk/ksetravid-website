@@ -2,6 +2,7 @@
    KSETRAVID NAVBAR — Cosmic Tech-Death Noir
    Sticky nav that transitions from transparent to solid on scroll.
    Red underline hover animation on nav links.
+   Logo: New "Triangle Eye" version (2024–2026)
    ============================================================= */
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
@@ -13,12 +14,10 @@ const NAV_LINKS = [
   { label: "Videos", href: "#videos" },
   { label: "Gallery", href: "#gallery" },
   { label: "Tour", href: "#tour" },
-  { label: "Merch", href: "#merch" },
-  { label: "Press", href: "#press" },
   { label: "Contact", href: "#contact" },
 ];
 
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/logo_square_3255306f.jpg";
+const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -56,19 +55,13 @@ export default function Navbar() {
             <img
               src={LOGO_URL}
               alt="Ksetravid Logo"
-              className="h-10 w-10 md:h-12 md:w-12 object-contain rounded-sm"
+              className="h-10 w-auto md:h-12 object-contain"
               style={{ filter: "brightness(1.1)" }}
             />
-            <span
-              className="font-display text-lg md:text-xl tracking-widest"
-              style={{ color: "oklch(0.87 0.02 80)" }}
-            >
-              KSETRAVID
-            </span>
           </button>
 
           {/* Desktop Nav */}
-          <div className="hidden lg:flex items-center gap-5">
+          <div className="hidden md:flex items-center gap-8">
             {NAV_LINKS.map((link) => (
               <button
                 key={link.href}
@@ -92,7 +85,7 @@ export default function Navbar() {
             href="https://open.spotify.com/artist/7DAIDyITrD8jeb60tCWQLk"
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden lg:flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border"
+            className="hidden md:flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border"
             style={{
               borderColor: "oklch(0.42 0.22 25)",
               color: "oklch(0.87 0.02 80)",
@@ -109,7 +102,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Toggle */}
           <button
-            className="lg:hidden p-2"
+            className="md:hidden p-2"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
             style={{ color: "oklch(0.87 0.02 80)" }}
@@ -126,6 +119,12 @@ export default function Navbar() {
           style={{ backgroundColor: "oklch(0.06 0.005 285 / 0.98)" }}
         >
           <div className="flex flex-col items-center gap-8 mt-12">
+            <img
+              src={LOGO_URL}
+              alt="Ksetravid"
+              className="h-16 w-auto object-contain mb-4"
+              style={{ filter: "brightness(1.1)" }}
+            />
             {NAV_LINKS.map((link) => (
               <button
                 key={link.href}

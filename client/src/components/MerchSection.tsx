@@ -7,7 +7,7 @@ const MERCH_ITEMS = [
     id: 1,
     name: "Ksetravid Logo Tee",
     description: "Classic black tee featuring the iconic Ksetravid logo — the eye of the knower.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/logo_square_3255306f.jpg",
+    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg",
     badge: "Available",
     badgeColor: "oklch(0.55 0.15 145)",
     url: "https://ksetravid.bandcamp.com/",

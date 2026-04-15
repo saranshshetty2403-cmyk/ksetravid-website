@@ -268,7 +268,7 @@ export default function ContactSection() {
             {/* Logo + name */}
             <div className="flex items-center gap-3">
               <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/logo_square_3255306f.jpg"
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_new_14609d64.jpg"
                 alt="Ksetravid"
                 className="w-8 h-8 object-contain"
               />

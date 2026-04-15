@@ -1,4 +1,4 @@
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { createHash } from "crypto";
@@ -9,6 +9,7 @@ import {
   siteImages, InsertSiteImage,
   merchProducts, InsertMerchProduct,
   upiSettings, InsertUpiSettings,
+  orders, InsertOrder,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -233,4 +234,42 @@ export async function saveUpiSettings(data: InsertUpiSettings) {
   } else {
     await db.insert(upiSettings).values(data);
   }
+}
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+
+/** Generate a unique transaction reference like KSV-20260415-A3X9 */
+export function generateTxnRef(): string {
+  const date = new Date();
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, "");
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `KSV-${dateStr}-${rand}`;
+}
+
+export async function createOrder(data: InsertOrder) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(orders).values(data).returning({ id: orders.id, txnRef: orders.txnRef });
+  return result[0];
+}
+
+export async function getOrders() {
+  const db = getDb();
+  if (!db) return [];
+  return db.select().from(orders).orderBy(desc(orders.createdAt));
+}
+
+export async function getOrderById(id: number) {
+  const db = getDb();
+  if (!db) return null;
+  const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function updateOrderStatus(id: number, paymentStatus: "pending" | "paid" | "confirmed" | "shipped" | "delivered" | "cancelled", adminNotes?: string) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders)
+    .set({ paymentStatus, adminNotes: adminNotes ?? null, updatedAt: new Date() })
+    .where(eq(orders.id, id));
 }

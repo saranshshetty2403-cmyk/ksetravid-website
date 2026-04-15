@@ -1,42 +1,31 @@
 /* =============================================================
-   KSETRAVID MERCH STORE — UPI-powered checkout module
+   KSETRAVID MERCH STORE — Full Order Flow
    Design: Cosmic Tech-Death Noir
-   Data: Live from database (admin-managed)
-   Features:
-     - Dynamic category filter tabs (auto-generated from DB products)
-     - Product grid with real images, prices (INR), badges
-     - Product detail modal with size selector
-     - UPI checkout modal: QR code + deep link + WhatsApp confirm
+   Flow: Product → Size + Qty → Delivery Info → UPI Payment → Confirmation
    ============================================================= */
 import { useState, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
-  X,
-  ShoppingBag,
-  ChevronRight,
-  Smartphone,
-  Copy,
-  CheckCheck,
-  MessageCircle,
-  ArrowLeft,
-  AlertCircle,
-  Loader2,
+  X, ShoppingBag, ChevronRight, Smartphone, Copy, CheckCheck,
+  MessageCircle, ArrowLeft, AlertCircle, Loader2, Plus, Minus,
+  MapPin, User, Phone, Mail, CheckCircle2, Package,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
-const FALLBACK_WHATSAPP = "919999999999"; // fallback until admin sets WhatsApp number
+const FALLBACK_WHATSAPP = "919999999999";
 
 function formatINR(amount: number) {
   return `₹${amount.toLocaleString("en-IN")}`;
 }
 
-function buildUpiUri(upiId: string, upiName: string, amount: number, note: string) {
+function buildUpiUri(upiId: string, upiName: string, amount: number, txnRef: string) {
   const params = new URLSearchParams({
     pa: upiId,
     pn: upiName,
-    am: amount.toString(),
+    am: amount.toFixed(2),
     cu: "INR",
-    tn: note,
+    tn: `Ksetravid Order ${txnRef}`,
   });
   return `upi://pay?${params.toString()}`;
 }
@@ -64,34 +53,295 @@ type UpiData = {
   whatsappNumber?: string | null;
 };
 
-/* ── UPI Checkout Modal ─────────────────────────────────────────── */
-function UpiCheckoutModal({
+type DeliveryInfo = {
+  buyerName: string;
+  buyerPhone: string;
+  buyerEmail: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
+};
+
+const EMPTY_DELIVERY: DeliveryInfo = {
+  buyerName: "", buyerPhone: "", buyerEmail: "",
+  addressLine1: "", addressLine2: "",
+  city: "", state: "", pincode: "",
+};
+
+/* ── Step 1: Delivery Info Form ─────────────────────────────────── */
+function DeliveryForm({
   product,
   size,
+  quantity,
   upi,
   onClose,
   onBack,
+  onNext,
 }: {
   product: DbProduct;
   size: string;
+  quantity: number;
   upi: UpiData;
   onClose: () => void;
   onBack: () => void;
+  onNext: (info: DeliveryInfo, txnRef: string, orderId: number) => void;
+}) {
+  const [form, setForm] = useState<DeliveryInfo>(EMPTY_DELIVERY);
+  const [errors, setErrors] = useState<Partial<DeliveryInfo>>({});
+  const totalAmount = product.price * quantity;
+
+  const createOrder = trpc.orders.create.useMutation();
+
+  function validate(): boolean {
+    const e: Partial<DeliveryInfo> = {};
+    if (!form.buyerName.trim()) e.buyerName = "Required";
+    if (!form.buyerPhone.trim() || form.buyerPhone.replace(/\D/g, "").length < 10) e.buyerPhone = "Enter valid 10-digit number";
+    if (!form.addressLine1.trim()) e.addressLine1 = "Required";
+    if (!form.city.trim()) e.city = "Required";
+    if (!form.state.trim()) e.state = "Required";
+    if (!form.pincode.trim() || form.pincode.replace(/\D/g, "").length < 6) e.pincode = "Enter valid 6-digit pincode";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    try {
+      const result = await createOrder.mutateAsync({
+        buyerName: form.buyerName.trim(),
+        buyerPhone: form.buyerPhone.trim(),
+        buyerEmail: form.buyerEmail.trim() || null,
+        addressLine1: form.addressLine1.trim(),
+        addressLine2: form.addressLine2.trim() || null,
+        city: form.city.trim(),
+        state: form.state.trim(),
+        pincode: form.pincode.trim(),
+        productId: product.id,
+        productName: product.name,
+        productCategory: product.category,
+        selectedSize: size || null,
+        quantity,
+        unitPrice: product.price,
+        totalAmount,
+        upiId: upi.upiId,
+      });
+      onNext(form, result.txnRef, result.id);
+    } catch {
+      toast.error("Failed to save order. Please try again.");
+    }
+  }
+
+  const inputStyle = {
+    backgroundColor: "oklch(0.11 0.006 285)",
+    border: "1px solid oklch(1 0 0 / 0.12)",
+    color: "oklch(0.87 0.02 80)",
+    outline: "none",
+    width: "100%",
+    padding: "10px 12px",
+    fontSize: "14px",
+    fontFamily: "inherit",
+  } as React.CSSProperties;
+
+  const labelStyle = {
+    display: "block",
+    fontFamily: "var(--font-mono-tech, monospace)",
+    fontSize: "10px",
+    letterSpacing: "0.1em",
+    textTransform: "uppercase" as const,
+    color: "oklch(0.45 0.015 285)",
+    marginBottom: "6px",
+  };
+
+  const errorStyle = { color: "oklch(0.65 0.22 25)", fontSize: "11px", marginTop: "4px", fontFamily: "monospace" };
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      style={{ backgroundColor: "oklch(0 0 0 / 0.90)", backdropFilter: "blur(10px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-lg overflow-y-auto"
+        style={{
+          maxHeight: "95vh",
+          backgroundColor: "oklch(0.08 0.006 285)",
+          border: "1px solid oklch(0.52 0.24 25 / 0.35)",
+          boxShadow: "0 0 80px oklch(0.52 0.24 25 / 0.12)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid oklch(1 0 0 / 0.08)" }}>
+          <button onClick={onBack} className="flex items-center gap-2 text-xs tracking-widest uppercase transition-colors" style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}>
+            <ArrowLeft size={14} /> Back
+          </button>
+          <p style={{ color: "oklch(0.52 0.24 25)", fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            ◆ Delivery Details
+          </p>
+          <button onClick={onClose} className="p-1 transition-colors" style={{ color: "oklch(0.50 0.015 285)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          {/* Order Summary */}
+          <div className="flex items-center gap-4 p-4 mb-6" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
+            <img src={product.imageUrl} alt={product.name} className="w-14 h-14 object-cover shrink-0" style={{ border: "1px solid oklch(0.52 0.24 25 / 0.25)" }} />
+            <div className="flex-1 min-w-0">
+              <p style={{ color: "oklch(0.87 0.02 80)", fontSize: "13px", fontWeight: 600 }}>{product.name}</p>
+              <p style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                {size && `Size: ${size} · `}Qty: {quantity}
+              </p>
+              <p style={{ color: "oklch(0.52 0.24 25)", fontSize: "16px", fontWeight: 700, marginTop: "2px" }}>{formatINR(totalAmount)}</p>
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div className="mb-5">
+            <div className="flex items-center gap-2 mb-4" style={{ color: "oklch(0.52 0.24 25)" }}>
+              <User size={14} />
+              <span style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase" }}>Contact Information</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label style={labelStyle}>Full Name *</label>
+                <input style={{ ...inputStyle, borderColor: errors.buyerName ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                  value={form.buyerName} onChange={e => setForm(f => ({ ...f, buyerName: e.target.value }))}
+                  placeholder="Your full name" />
+                {errors.buyerName && <p style={errorStyle}>{errors.buyerName}</p>}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label style={labelStyle}><Phone size={10} className="inline mr-1" />Phone *</label>
+                  <input style={{ ...inputStyle, borderColor: errors.buyerPhone ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                    value={form.buyerPhone} onChange={e => setForm(f => ({ ...f, buyerPhone: e.target.value }))}
+                    placeholder="10-digit mobile" type="tel" />
+                  {errors.buyerPhone && <p style={errorStyle}>{errors.buyerPhone}</p>}
+                </div>
+                <div>
+                  <label style={labelStyle}><Mail size={10} className="inline mr-1" />Email (optional)</label>
+                  <input style={inputStyle}
+                    value={form.buyerEmail} onChange={e => setForm(f => ({ ...f, buyerEmail: e.target.value }))}
+                    placeholder="email@example.com" type="email" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Address */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4" style={{ color: "oklch(0.52 0.24 25)" }}>
+              <MapPin size={14} />
+              <span style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase" }}>Delivery Address</span>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label style={labelStyle}>Address Line 1 *</label>
+                <input style={{ ...inputStyle, borderColor: errors.addressLine1 ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                  value={form.addressLine1} onChange={e => setForm(f => ({ ...f, addressLine1: e.target.value }))}
+                  placeholder="House/Flat No., Street, Area" />
+                {errors.addressLine1 && <p style={errorStyle}>{errors.addressLine1}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Address Line 2 (optional)</label>
+                <input style={inputStyle}
+                  value={form.addressLine2} onChange={e => setForm(f => ({ ...f, addressLine2: e.target.value }))}
+                  placeholder="Landmark, Colony, etc." />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label style={labelStyle}>City *</label>
+                  <input style={{ ...inputStyle, borderColor: errors.city ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                    value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    placeholder="City" />
+                  {errors.city && <p style={errorStyle}>{errors.city}</p>}
+                </div>
+                <div>
+                  <label style={labelStyle}>State *</label>
+                  <input style={{ ...inputStyle, borderColor: errors.state ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                    value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))}
+                    placeholder="State" />
+                  {errors.state && <p style={errorStyle}>{errors.state}</p>}
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Pincode *</label>
+                <input style={{ ...inputStyle, borderColor: errors.pincode ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                  value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))}
+                  placeholder="6-digit pincode" maxLength={6} />
+                {errors.pincode && <p style={errorStyle}>{errors.pincode}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={createOrder.isPending}
+            className="w-full flex items-center justify-center gap-3 py-4 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200"
+            style={{
+              backgroundColor: createOrder.isPending ? "oklch(0.35 0.12 25)" : "oklch(0.52 0.24 25)",
+              color: "oklch(0.97 0.005 80)",
+              border: "1px solid oklch(0.52 0.24 25)",
+              cursor: createOrder.isPending ? "not-allowed" : "pointer",
+            }}
+          >
+            {createOrder.isPending ? <><Loader2 size={16} className="animate-spin" /> Saving Order…</> : <>Proceed to Payment <ChevronRight size={16} /></>}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Step 2: UPI Payment ────────────────────────────────────────── */
+function UpiPaymentModal({
+  product,
+  size,
+  quantity,
+  upi,
+  txnRef,
+  deliveryInfo,
+  onClose,
+  onDone,
+}: {
+  product: DbProduct;
+  size: string;
+  quantity: number;
+  upi: UpiData;
+  txnRef: string;
+  deliveryInfo: DeliveryInfo;
+  onClose: () => void;
+  onDone: () => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const note = `Ksetravid Merch: ${product.name} (${size})`;
-  const upiUri = useMemo(() => buildUpiUri(upi.upiId, upi.accountName, product.price, note), [product, size, upi]);
+  const [copiedRef, setCopiedRef] = useState(false);
+  const totalAmount = product.price * quantity;
+  const upiUri = useMemo(() => buildUpiUri(upi.upiId, upi.accountName, totalAmount, txnRef), [upi, totalAmount, txnRef]);
 
   const whatsappMsg = encodeURIComponent(
-    `Hi! I just paid ₹${product.price} via UPI for:\n*${product.name}* — Size: ${size}\nUPI ID: ${upi.upiId}\nPlease confirm my order. 🤘`
+    `Hi! I just placed an order on Ksetravid.\n\n` +
+    `*Order Ref:* ${txnRef}\n` +
+    `*Product:* ${product.name}${size ? ` — Size: ${size}` : ""}\n` +
+    `*Qty:* ${quantity} × ${formatINR(product.price)} = *${formatINR(totalAmount)}*\n` +
+    `*UPI ID paid to:* ${upi.upiId}\n\n` +
+    `*Delivery to:*\n${deliveryInfo.buyerName}\n${deliveryInfo.addressLine1}${deliveryInfo.addressLine2 ? ", " + deliveryInfo.addressLine2 : ""}\n${deliveryInfo.city}, ${deliveryInfo.state} — ${deliveryInfo.pincode}\nPhone: ${deliveryInfo.buyerPhone}\n\n` +
+    `Please confirm my order. 🤘`
   );
   const whatsappUrl = `https://wa.me/${upi.whatsappNumber || FALLBACK_WHATSAPP}?text=${whatsappMsg}`;
 
   function copyUpiId() {
-    navigator.clipboard.writeText(upi.upiId).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    });
+    navigator.clipboard.writeText(upi.upiId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });
+  }
+  function copyTxnRef() {
+    navigator.clipboard.writeText(txnRef).then(() => { setCopiedRef(true); setTimeout(() => setCopiedRef(false), 2500); });
   }
 
   return (
@@ -106,50 +356,58 @@ function UpiCheckoutModal({
           maxHeight: "95vh",
           backgroundColor: "oklch(0.08 0.006 285)",
           border: "1px solid oklch(0.52 0.24 25 / 0.45)",
-          boxShadow: "0 0 80px oklch(0.52 0.24 25 / 0.20), 0 0 0 1px oklch(0.52 0.24 25 / 0.10)",
+          boxShadow: "0 0 80px oklch(0.52 0.24 25 / 0.20)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid oklch(1 0 0 / 0.08)" }}>
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 font-mono-tech text-xs tracking-widest uppercase transition-colors duration-150"
-            style={{ color: "oklch(0.50 0.015 285)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
-          <p className="font-mono-tech text-xs tracking-widest uppercase" style={{ color: "oklch(0.52 0.24 25)" }}>
-            ◆ UPI Checkout
+          <p style={{ color: "oklch(0.52 0.24 25)", fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            ◆ UPI Payment
           </p>
-          <button
-            onClick={onClose}
-            className="p-1 transition-colors duration-150"
-            style={{ color: "oklch(0.50 0.015 285)" }}
+          <button onClick={onClose} className="p-1 transition-colors" style={{ color: "oklch(0.50 0.015 285)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}
-          >
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}>
             <X size={18} />
           </button>
         </div>
 
         <div className="p-6">
           {/* Order Summary */}
-          <div className="flex items-center gap-4 p-4 mb-6" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
-            <img src={product.imageUrl} alt={product.name} className="w-16 h-16 object-cover shrink-0" style={{ border: "1px solid oklch(0.52 0.24 25 / 0.25)" }} />
+          <div className="flex items-center gap-4 p-4 mb-5" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
+            <img src={product.imageUrl} alt={product.name} className="w-14 h-14 object-cover shrink-0" style={{ border: "1px solid oklch(0.52 0.24 25 / 0.25)" }} />
             <div className="flex-1 min-w-0">
-              <p className="font-display text-sm leading-tight mb-1" style={{ color: "oklch(0.87 0.02 80)" }}>{product.name}</p>
-              <p className="font-mono-tech text-xs tracking-widest uppercase" style={{ color: "oklch(0.50 0.015 285)" }}>Size: {size}</p>
-              <p className="font-display text-lg mt-1" style={{ color: "oklch(0.52 0.24 25)" }}>{formatINR(product.price)}</p>
+              <p style={{ color: "oklch(0.87 0.02 80)", fontSize: "13px", fontWeight: 600 }}>{product.name}</p>
+              <p style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                {size && `Size: ${size} · `}Qty: {quantity}
+              </p>
+              <p style={{ color: "oklch(0.52 0.24 25)", fontSize: "18px", fontWeight: 700, marginTop: "2px" }}>{formatINR(totalAmount)}</p>
+            </div>
+          </div>
+
+          {/* Transaction Ref */}
+          <div className="mb-5 p-4" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}>
+            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "6px" }}>
+              Transaction Reference (use in payment note)
+            </p>
+            <div className="flex items-center justify-between gap-3">
+              <span style={{ fontFamily: "monospace", fontSize: "15px", fontWeight: 700, color: "oklch(0.52 0.24 25)", letterSpacing: "0.05em" }}>{txnRef}</span>
+              <button onClick={copyTxnRef} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase transition-all duration-200"
+                style={{
+                  fontFamily: "monospace",
+                  backgroundColor: copiedRef ? "oklch(0.52 0.24 25 / 0.15)" : "transparent",
+                  border: `1px solid ${copiedRef ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`,
+                  color: copiedRef ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)",
+                }}>
+                {copiedRef ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+              </button>
             </div>
           </div>
 
           {/* QR Code */}
-          <div className="flex flex-col items-center mb-6">
-            <p className="font-mono-tech text-xs tracking-widest uppercase mb-4" style={{ color: "oklch(0.45 0.015 285)" }}>
-              Scan QR to Pay
+          <div className="flex flex-col items-center mb-5">
+            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "12px" }}>
+              Scan QR to Pay {formatINR(totalAmount)}
             </p>
             <div className="p-4 bg-white inline-block">
               {upi.qrCodeUrl ? (
@@ -161,36 +419,34 @@ function UpiCheckoutModal({
           </div>
 
           {/* UPI ID copy */}
-          <div className="mb-6 p-4" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
-            <p className="font-mono-tech text-xs tracking-widest uppercase mb-2" style={{ color: "oklch(0.45 0.015 285)" }}>UPI ID</p>
+          <div className="mb-5 p-4" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
+            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "8px" }}>UPI ID</p>
             <div className="flex items-center justify-between gap-3">
-              <span className="font-mono text-sm" style={{ color: "oklch(0.87 0.02 80)" }}>{upi.upiId}</span>
-              <button
-                onClick={copyUpiId}
-                className="flex items-center gap-1.5 px-3 py-1.5 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200"
+              <span style={{ fontFamily: "monospace", fontSize: "14px", color: "oklch(0.87 0.02 80)" }}>{upi.upiId}</span>
+              <button onClick={copyUpiId} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase transition-all duration-200"
                 style={{
+                  fontFamily: "monospace",
                   backgroundColor: copied ? "oklch(0.52 0.24 25 / 0.15)" : "transparent",
                   border: `1px solid ${copied ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`,
                   color: copied ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)",
-                }}
-              >
+                }}>
                 {copied ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
               </button>
             </div>
-            <p className="font-mono-tech text-xs mt-2" style={{ color: "oklch(0.45 0.015 285)" }}>
+            <p style={{ fontFamily: "monospace", fontSize: "11px", color: "oklch(0.45 0.015 285)", marginTop: "4px" }}>
               Pay to: {upi.accountName}
             </p>
           </div>
 
-          {/* Pay button */}
+          {/* Pay button — pre-fills UPI app with amount, UPI ID, and transaction ref */}
           <a
             href={upiUri}
-            className="flex items-center justify-center gap-3 py-4 mb-4 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200"
-            style={{ backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)" }}
+            className="flex items-center justify-center gap-3 py-4 mb-4 text-sm tracking-widest uppercase transition-all duration-200"
+            style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)", display: "flex" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
           >
-            <Smartphone size={16} /> Open UPI App · {formatINR(product.price)}
+            <Smartphone size={16} /> Open UPI App · Pay {formatINR(totalAmount)}
           </a>
 
           {/* WhatsApp confirm */}
@@ -198,20 +454,79 @@ function UpiCheckoutModal({
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 py-3 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200"
-            style={{ backgroundColor: "oklch(0.11 0.006 285)", color: "oklch(0.65 0.18 145)", border: "1px solid oklch(0.65 0.18 145 / 0.3)" }}
+            className="flex items-center justify-center gap-3 py-3 mb-4 text-xs tracking-widest uppercase transition-all duration-200"
+            style={{ fontFamily: "monospace", backgroundColor: "oklch(0.11 0.006 285)", color: "oklch(0.65 0.18 145)", border: "1px solid oklch(0.65 0.18 145 / 0.3)", display: "flex" }}
           >
             <MessageCircle size={14} /> Confirm Order on WhatsApp
           </a>
 
+          {/* Done button */}
+          <button
+            onClick={onDone}
+            className="w-full flex items-center justify-center gap-2 py-3 text-xs tracking-widest uppercase transition-all duration-200"
+            style={{ fontFamily: "monospace", backgroundColor: "transparent", color: "oklch(0.55 0.015 285)", border: "1px solid oklch(1 0 0 / 0.12)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.4)"; (e.currentTarget as HTMLElement).style.color = "oklch(0.87 0.02 80)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(1 0 0 / 0.12)"; (e.currentTarget as HTMLElement).style.color = "oklch(0.55 0.015 285)"; }}
+          >
+            <CheckCircle2 size={14} /> I've Paid — Done
+          </button>
+
           {/* Notice */}
           <div className="flex items-start gap-3 mt-4 p-3" style={{ backgroundColor: "oklch(0.62 0.18 60 / 0.06)", border: "1px solid oklch(0.62 0.18 60 / 0.2)" }}>
             <AlertCircle size={14} style={{ color: "oklch(0.62 0.18 60)", flexShrink: 0, marginTop: 2 }} />
-            <p className="font-mono-tech text-xs leading-relaxed" style={{ color: "oklch(0.62 0.18 60)" }}>
-              After payment, confirm your order via WhatsApp with your payment screenshot. We ship from Bangalore, India.
+            <p style={{ fontFamily: "monospace", fontSize: "11px", lineHeight: 1.6, color: "oklch(0.62 0.18 60)" }}>
+              After payment, confirm via WhatsApp with your payment screenshot and order ref <strong>{txnRef}</strong>. We ship from Bangalore, India.
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Step 3: Order Confirmed ────────────────────────────────────── */
+function OrderConfirmedModal({ txnRef, onClose }: { txnRef: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[400] flex items-center justify-center p-4"
+      style={{ backgroundColor: "oklch(0 0 0 / 0.92)", backdropFilter: "blur(12px)" }}
+    >
+      <div
+        className="relative w-full max-w-md text-center p-10"
+        style={{
+          backgroundColor: "oklch(0.08 0.006 285)",
+          border: "1px solid oklch(0.52 0.24 25 / 0.45)",
+          boxShadow: "0 0 100px oklch(0.52 0.24 25 / 0.15)",
+        }}
+      >
+        <CheckCircle2 size={48} className="mx-auto mb-5" style={{ color: "oklch(0.52 0.24 25)" }} />
+        <h3 style={{ fontFamily: "var(--font-display, serif)", fontSize: "24px", color: "oklch(0.93 0.015 80)", marginBottom: "12px" }}>
+          ORDER PLACED
+        </h3>
+        <p style={{ fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "16px" }}>
+          Transaction Reference
+        </p>
+        <p style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "oklch(0.52 0.24 25)", marginBottom: "20px", letterSpacing: "0.05em" }}>
+          {txnRef}
+        </p>
+        <p style={{ fontFamily: "monospace", fontSize: "12px", lineHeight: 1.7, color: "oklch(0.55 0.015 285)", marginBottom: "28px" }}>
+          Save your order reference. After completing the UPI payment, send your payment screenshot + order ref to us on WhatsApp to confirm shipment.
+        </p>
+        <div className="flex items-center gap-2 justify-center mb-6 p-3" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.25)" }}>
+          <Package size={14} style={{ color: "oklch(0.52 0.24 25)" }} />
+          <span style={{ fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.52 0.24 25)" }}>
+            Ships from Bangalore, India
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="w-full py-3 text-sm tracking-widest uppercase transition-all duration-200"
+          style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
+        >
+          Continue Shopping
+        </button>
       </div>
     </div>
   );
@@ -222,22 +537,25 @@ function ProductModal({
   product,
   upi,
   onClose,
-  onPay,
+  onCheckout,
 }: {
   product: DbProduct;
   upi: UpiData | null;
   onClose: () => void;
-  onPay: (size: string) => void;
+  onCheckout: (size: string, quantity: number) => void;
 }) {
   const [selectedSize, setSelectedSize] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [sizeError, setSizeError] = useState(false);
   const sizes = product.sizes.split(",").map(s => s.trim()).filter(Boolean);
 
-  function handlePay() {
-    if (!selectedSize) { setSizeError(true); return; }
+  function handleCheckout() {
+    if (sizes.length > 0 && !selectedSize) { setSizeError(true); return; }
     setSizeError(false);
-    onPay(selectedSize);
+    onCheckout(selectedSize, quantity);
   }
+
+  const totalAmount = product.price * quantity;
 
   return (
     <div
@@ -267,72 +585,121 @@ function ProductModal({
 
         <div className="grid md:grid-cols-2">
           {/* Image */}
-          <div className="aspect-square overflow-hidden" style={{ backgroundColor: "oklch(0.10 0.006 285)" }}>
+          <div className="relative aspect-square md:aspect-auto" style={{ backgroundColor: "oklch(0.11 0.006 285)", minHeight: "280px" }}>
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+            {product.collectionTag && (
+              <span className="absolute top-4 left-4 font-mono-tech text-xs tracking-wider uppercase px-3 py-1.5"
+                style={{ backgroundColor: "oklch(0.08 0.006 285 / 0.85)", color: "oklch(0.52 0.24 25)", border: "1px solid oklch(0.52 0.24 25 / 0.4)" }}>
+                {product.collectionTag}
+              </span>
+            )}
           </div>
 
           {/* Details */}
-          <div className="p-6 md:p-8 flex flex-col">
-            <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: "oklch(0.45 0.015 285)" }}>
-              {product.collectionTag ?? product.category}
+          <div className="p-7 flex flex-col">
+            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "8px" }}>
+              {product.category}
             </p>
-
-            <h3 className="font-display text-2xl md:text-3xl mb-2 leading-tight" style={{ color: "oklch(0.93 0.015 80)" }}>
+            <h3 style={{ fontFamily: "var(--font-display, serif)", fontSize: "22px", lineHeight: 1.2, color: "oklch(0.93 0.015 80)", marginBottom: "12px" }}>
               {product.name}
             </h3>
-
-            <p className="font-display text-3xl mb-6" style={{ color: "oklch(0.52 0.24 25)" }}>
+            <p style={{ fontFamily: "var(--font-display, serif)", fontSize: "28px", color: "oklch(0.52 0.24 25)", marginBottom: "16px" }}>
               {formatINR(product.price)}
-              <span className="font-mono-tech text-xs ml-2" style={{ color: "oklch(0.45 0.015 285)" }}>Taxes included</span>
             </p>
 
             {product.description && (
-              <p className="font-body text-sm leading-relaxed mb-6" style={{ color: "oklch(0.60 0.015 285)" }}>
+              <p style={{ fontFamily: "var(--font-body, sans-serif)", fontSize: "14px", lineHeight: 1.7, color: "oklch(0.55 0.015 285)", marginBottom: "20px" }}>
                 {product.description}
               </p>
             )}
 
-            {/* Size selector */}
-            <div className="mb-6">
-              <p className="font-mono-tech text-xs tracking-widest uppercase mb-3" style={{ color: sizeError ? "oklch(0.65 0.22 25)" : "oklch(0.55 0.015 285)" }}>
-                {sizeError ? "⚠ Please select a size first" : "Select Size"}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {sizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => { setSelectedSize(size); setSizeError(false); }}
-                    className="font-mono-tech text-xs tracking-wider px-3 py-2 transition-all duration-150"
-                    style={{
-                      border: selectedSize === size ? "1px solid oklch(0.52 0.24 25)" : sizeError ? "1px solid oklch(0.65 0.22 25 / 0.40)" : "1px solid oklch(1 0 0 / 0.15)",
-                      backgroundColor: selectedSize === size ? "oklch(0.52 0.24 25 / 0.15)" : "transparent",
-                      color: selectedSize === size ? "oklch(0.52 0.24 25)" : "oklch(0.60 0.015 285)",
-                    }}
-                  >
-                    {size}
-                  </button>
+            {/* Tags */}
+            {product.tags && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                {product.tags.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                  <span key={tag} className="font-mono-tech text-xs tracking-wider uppercase px-2 py-1"
+                    style={{ border: "1px solid oklch(1 0 0 / 0.12)", color: "oklch(0.45 0.015 285)" }}>
+                    {tag}
+                  </span>
                 ))}
+              </div>
+            )}
+
+            {/* Size selector */}
+            {sizes.length > 0 && (
+              <div className="mb-5">
+                <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "10px" }}>
+                  Select Size {sizeError && <span style={{ color: "oklch(0.65 0.22 25)" }}>— Required</span>}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map(size => (
+                    <button key={size} onClick={() => { setSelectedSize(size); setSizeError(false); }}
+                      className="px-4 py-2 font-mono-tech text-xs tracking-widest uppercase transition-all duration-150"
+                      style={{
+                        border: `1px solid ${selectedSize === size ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`,
+                        backgroundColor: selectedSize === size ? "oklch(0.52 0.24 25 / 0.12)" : "transparent",
+                        color: selectedSize === size ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)",
+                      }}>
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quantity selector */}
+            <div className="mb-6">
+              <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "10px" }}>
+                Quantity
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center" style={{ border: "1px solid oklch(1 0 0 / 0.15)" }}>
+                  <button
+                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    className="px-3 py-2 transition-colors duration-150"
+                    style={{ color: "oklch(0.55 0.015 285)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.55 0.015 285)"; }}
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span style={{ minWidth: "36px", textAlign: "center", fontFamily: "monospace", fontSize: "16px", fontWeight: 700, color: "oklch(0.87 0.02 80)", padding: "8px 4px" }}>
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => setQuantity(q => Math.min(10, q + 1))}
+                    className="px-3 py-2 transition-colors duration-150"
+                    style={{ color: "oklch(0.55 0.015 285)" }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.55 0.015 285)"; }}
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                {quantity > 1 && (
+                  <span style={{ fontFamily: "var(--font-display, serif)", fontSize: "18px", color: "oklch(0.52 0.24 25)" }}>
+                    = {formatINR(totalAmount)}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Pay with UPI CTA */}
+            {/* Buy button */}
             <button
-              onClick={handlePay}
-              className="flex items-center justify-center gap-3 py-4 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200 mt-auto"
+              onClick={handleCheckout}
+              className="mt-auto flex items-center justify-center gap-3 py-4 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200"
               style={{ backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
             >
-              <ShoppingBag size={16} />
-              Pay with UPI
-              <span className="font-mono-tech text-xs px-2 py-0.5 ml-1" style={{ backgroundColor: "oklch(0.97 0.005 80 / 0.15)", border: "1px solid oklch(0.97 0.005 80 / 0.25)" }}>
-                {formatINR(product.price)}
-              </span>
+              <ShoppingBag size={16} /> Buy Now · {formatINR(totalAmount)}
             </button>
 
-            <p className="font-mono-tech text-xs text-center mt-3" style={{ color: "oklch(0.40 0.015 285)" }}>
-              Instant UPI payment · Ships from Bangalore, India
-            </p>
+            {upi && (
+              <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.38 0.015 285)", textAlign: "center", marginTop: "10px" }}>
+                Pay via UPI · {upi.upiId}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -340,16 +707,12 @@ function ProductModal({
   );
 }
 
-// ── Hardcoded fallback products (shown when DB/backend is unavailable e.g. Vercel static deploy) ──
+/* ── Fallback Data ───────────────────────────────────────────────── */
 const FALLBACK_PRODUCTS: DbProduct[] = [
-  { id: 1, name: "Anamnesis — Regular Tee", category: "tees", price: 1000, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tee_hd_e9accf90.jpg", description: "Unleash the essence of Ksetravid's Anamnesis with this exclusive graphic T-shirt, crafted by acclaimed artist Dipayan Das. Made for fans who live and breathe heavy music, this tee blends bold artwork with premium comfort — perfect for gigs, festivals, or everyday streetwear.", sizes: "S,M,L,XL,2XL", tags: "Best Seller,graphic,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 1, shopifyUrl: null },
-  { id: 2, name: "Anamnesis — Tank Top", category: "tanks", price: 850, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tank_hd_b3f14fac.jpg", description: "A brutal, premium graphic tank top featuring exclusive Anamnesis artwork by Dipayan Das. Designed for fans who live and breathe heavy music. Lightweight, sleeveless cut — ideal for the pit.", sizes: "S,L,XL,2XL,3XL", tags: "New,graphic,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 2, shopifyUrl: null },
-  { id: 3, name: "Berserker — Shorts", category: "shorts", price: 700, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_shorts_correct_cf0c28e8.png", description: "Berserker-series shorts featuring the signature Ksetravid occult artwork. Satin-finish black fabric with drawstring waist.", sizes: "28,30,32,34,36", tags: "Limited,occult,black", collectionTag: "Berserker", isActive: true, sortOrder: 3, shopifyUrl: null },
-  { id: 4, name: "Berserker — Tank Top", category: "tanks", price: 800, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_tank_hd_afbe5844.png", description: "The Berserker tank top brings the raw power of Ksetravid's occult-metal aesthetic to a sleeveless format. Heavyweight cotton blend, oversized fit.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,occult,black", collectionTag: "Berserker", isActive: true, sortOrder: 4, shopifyUrl: null },
-  { id: 5, name: "Crop Top — She/Her", category: "crop-tops", price: 750, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_crop_top_hd_1e662d72.png", description: "Ksetravid's first crop top — designed for she/her fans who want to carry the band's occult energy in a fitted silhouette.", sizes: "XS,S,M,L,XL", tags: "She/Her,occult,fitted", collectionTag: "Berserker", isActive: true, sortOrder: 5, shopifyUrl: null },
-  { id: 6, name: "Nomad — Shorts", category: "shorts", price: 700, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_shorts_hd_66199aa0.png", description: "Nomad-series shorts with the Ksetravid logo and serpentine artwork. Satin-finish black with drawstring waist.", sizes: "28,30,32,34,36", tags: "Limited,serpent,black", collectionTag: "Nomad", isActive: true, sortOrder: 6, shopifyUrl: null },
-  { id: 7, name: "Nomad — Tank Top", category: "tanks", price: 750, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_tank_hd_78506900.png", description: "The Nomad tank top — sleeveless, raw, and relentless. Featuring the serpent-and-eye motif from the Nomad collection.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,serpent,black", collectionTag: "Nomad", isActive: true, sortOrder: 7, shopifyUrl: null },
-  { id: 8, name: "Ouroboros & Meditate — Tee", category: "tees", price: 1000, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_ouroborus_tee_hd_b56f698d.jpg", description: "The Ouroboros & Meditate tee — a double-sided design featuring the eternal serpent on the front and the meditating figure on the back.", sizes: "S,M,L,XL,2XL", tags: "Signature,occult,black", collectionTag: "Ouroboros", isActive: true, sortOrder: 8, shopifyUrl: null },
+  { id: 1, name: "Ksetravid Logo — Tee", category: "tees", price: 999, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_logo_tee_hd_d6e7f8a9.png", description: "The official Ksetravid logo tee.", sizes: "S,M,L,XL,2XL,3XL", tags: "Signature,black,logo", collectionTag: "Core", isActive: true, sortOrder: 1, shopifyUrl: null },
+  { id: 2, name: "Serpent Eye — Tee", category: "tees", price: 999, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_serpent_tee_hd_a1b2c3d4.png", description: "The Serpent Eye tee — cosmic horror in cotton.", sizes: "S,M,L,XL,2XL", tags: "New,serpent,occult", collectionTag: "Nomad", isActive: true, sortOrder: 2, shopifyUrl: null },
+  { id: 3, name: "Ouroboros — Hoodie", category: "hoodies", price: 1799, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_ouroboros_hoodie_hd_e5f6a7b8.png", description: "Heavy-weight hoodie with the Ouroboros design.", sizes: "S,M,L,XL,2XL", tags: "Signature,black", collectionTag: "Ouroboros", isActive: true, sortOrder: 3, shopifyUrl: null },
+  { id: 4, name: "Nomad — Tank Top", category: "tanks", price: 750, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_tank_hd_78506900.png", description: "Sleeveless, raw, and relentless.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,serpent,black", collectionTag: "Nomad", isActive: true, sortOrder: 4, shopifyUrl: null },
 ];
 
 const FALLBACK_UPI: UpiData = {
@@ -361,45 +724,36 @@ const FALLBACK_UPI: UpiData = {
 
 /* ── Main MerchSection ──────────────────────────────────────────── */
 export default function MerchSection() {
-  const { data: dbProducts, isLoading: productsLoading } = trpc.merch.list.useQuery(undefined, {
-    retry: 1,
-    retryDelay: 500,
-  });
-  const { data: upiData } = trpc.upi.get.useQuery(undefined, {
-    retry: 1,
-    retryDelay: 500,
-  });
+  const { data: dbProducts, isLoading: productsLoading } = trpc.merch.list.useQuery(undefined, { retry: 1, retryDelay: 500 });
+  const { data: upiData } = trpc.upi.get.useQuery(undefined, { retry: 1, retryDelay: 500 });
 
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedProduct, setSelectedProduct] = useState<DbProduct | null>(null);
-  const [checkoutProduct, setCheckoutProduct] = useState<DbProduct | null>(null);
-  const [checkoutSize, setCheckoutSize] = useState<string>("");
 
-  // Use DB products if available, otherwise fall back to hardcoded data
-  // This ensures the merch section always shows products even on static/serverless deploys
+  // Checkout flow state
+  type CheckoutStep = "idle" | "delivery" | "payment" | "confirmed";
+  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("idle");
+  const [checkoutProduct, setCheckoutProduct] = useState<DbProduct | null>(null);
+  const [checkoutSize, setCheckoutSize] = useState("");
+  const [checkoutQty, setCheckoutQty] = useState(1);
+  const [checkoutTxnRef, setCheckoutTxnRef] = useState("");
+  const [checkoutDelivery, setCheckoutDelivery] = useState<DeliveryInfo>(EMPTY_DELIVERY);
+
   const products = useMemo(() => {
     if (dbProducts && dbProducts.length > 0) return dbProducts.filter(p => p.isActive);
-    if (!productsLoading) return FALLBACK_PRODUCTS; // DB unavailable — use fallback
-    return []; // Still loading
+    if (!productsLoading) return FALLBACK_PRODUCTS;
+    return [];
   }, [dbProducts, productsLoading]);
 
-  // Dynamically build category tabs from DB products
   const categories = useMemo(() => {
     const cats = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
     return [
       { key: "all", label: "All Items" },
-      ...cats.map(c => ({
-        key: c,
-        label: c.charAt(0).toUpperCase() + c.slice(1).replace(/-/g, " "),
-      })),
+      ...cats.map(c => ({ key: c, label: c.charAt(0).toUpperCase() + c.slice(1).replace(/-/g, " ") })),
     ];
   }, [products]);
 
-  // Dynamically build collections from DB products
-  const collections = useMemo(() => {
-    return Array.from(new Set(products.map(p => p.collectionTag).filter(Boolean)));
-  }, [products]);
-
+  const collections = useMemo(() => Array.from(new Set(products.map(p => p.collectionTag).filter(Boolean))), [products]);
   const filtered = activeCategory === "all" ? products : products.filter(p => p.category === activeCategory);
 
   const upi: UpiData = upiData ? {
@@ -409,31 +763,72 @@ export default function MerchSection() {
     whatsappNumber: upiData.whatsappNumber ?? FALLBACK_WHATSAPP,
   } : FALLBACK_UPI;
 
-  function handlePay(product: DbProduct, size: string) {
+  function handleOpenCheckout(product: DbProduct, size: string, quantity: number) {
     setCheckoutProduct(product);
     setCheckoutSize(size);
+    setCheckoutQty(quantity);
     setSelectedProduct(null);
+    setCheckoutStep("delivery");
   }
 
   function handleCloseAll() {
     setSelectedProduct(null);
+    setCheckoutStep("idle");
     setCheckoutProduct(null);
     setCheckoutSize("");
+    setCheckoutQty(1);
+    setCheckoutTxnRef("");
+    setCheckoutDelivery(EMPTY_DELIVERY);
   }
 
-  function handleBackToProduct() {
-    if (checkoutProduct) setSelectedProduct(checkoutProduct);
-    setCheckoutProduct(null);
-    setCheckoutSize("");
+  function handleDeliveryNext(info: DeliveryInfo, txnRef: string, _orderId: number) {
+    setCheckoutDelivery(info);
+    setCheckoutTxnRef(txnRef);
+    setCheckoutStep("payment");
   }
 
   return (
     <>
-      {selectedProduct && !checkoutProduct && (
-        <ProductModal product={selectedProduct} upi={upi} onClose={handleCloseAll} onPay={(size) => handlePay(selectedProduct, size)} />
+      {/* Product Detail Modal */}
+      {selectedProduct && checkoutStep === "idle" && (
+        <ProductModal
+          product={selectedProduct}
+          upi={upi}
+          onClose={handleCloseAll}
+          onCheckout={(size, qty) => handleOpenCheckout(selectedProduct, size, qty)}
+        />
       )}
-      {checkoutProduct && checkoutSize && (
-        <UpiCheckoutModal product={checkoutProduct} size={checkoutSize} upi={upi} onClose={handleCloseAll} onBack={handleBackToProduct} />
+
+      {/* Step 1: Delivery Info */}
+      {checkoutStep === "delivery" && checkoutProduct && (
+        <DeliveryForm
+          product={checkoutProduct}
+          size={checkoutSize}
+          quantity={checkoutQty}
+          upi={upi}
+          onClose={handleCloseAll}
+          onBack={() => { setCheckoutStep("idle"); setSelectedProduct(checkoutProduct); }}
+          onNext={handleDeliveryNext}
+        />
+      )}
+
+      {/* Step 2: UPI Payment */}
+      {checkoutStep === "payment" && checkoutProduct && checkoutTxnRef && (
+        <UpiPaymentModal
+          product={checkoutProduct}
+          size={checkoutSize}
+          quantity={checkoutQty}
+          upi={upi}
+          txnRef={checkoutTxnRef}
+          deliveryInfo={checkoutDelivery}
+          onClose={handleCloseAll}
+          onDone={() => setCheckoutStep("confirmed")}
+        />
+      )}
+
+      {/* Step 3: Confirmation */}
+      {checkoutStep === "confirmed" && checkoutTxnRef && (
+        <OrderConfirmedModal txnRef={checkoutTxnRef} onClose={handleCloseAll} />
       )}
 
       <section id="merch" className="relative py-14 md:py-24" style={{ backgroundColor: "oklch(0.07 0.005 285)" }}>
@@ -473,7 +868,7 @@ export default function MerchSection() {
               <button
                 key={cat.key}
                 onClick={() => setActiveCategory(cat.key)}
-                className="font-mono-tech text-xs tracking-widest uppercase px-5 py-3 transition-all duration-200 relative"
+                className="font-mono-tech text-xs tracking-widest uppercase px-5 py-3 transition-all duration-200"
                 style={{
                   color: activeCategory === cat.key ? "oklch(0.52 0.24 25)" : "oklch(0.50 0.015 285)",
                   backgroundColor: "transparent",
@@ -510,24 +905,15 @@ export default function MerchSection() {
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.35)"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(1 0 0 / 0.07)"; }}
                 >
-                  {/* Product image */}
                   <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: "oklch(0.12 0.006 285)" }}>
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                     {product.tags && product.tags.split(",")[0]?.trim() && (
-                      <span
-                        className="absolute top-3 left-3 font-mono-tech text-xs tracking-wider uppercase px-2 py-1"
-                        style={{ backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)" }}
-                      >
+                      <span className="absolute top-3 left-3 font-mono-tech text-xs tracking-wider uppercase px-2 py-1"
+                        style={{ backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)" }}>
                         {product.tags.split(",")[0].trim()}
                       </span>
                     )}
                   </div>
-
-                  {/* Product info */}
                   <div className="p-4">
                     <p className="font-mono-tech text-xs tracking-widest uppercase mb-1" style={{ color: "oklch(0.45 0.015 285)" }}>
                       {product.collectionTag ?? product.category}
@@ -539,10 +925,7 @@ export default function MerchSection() {
                       <span className="font-display text-lg" style={{ color: "oklch(0.52 0.24 25)" }}>
                         {formatINR(product.price)}
                       </span>
-                      <span
-                        className="flex items-center gap-1 font-mono-tech text-xs tracking-widest uppercase transition-colors duration-200"
-                        style={{ color: "oklch(0.45 0.015 285)" }}
-                      >
+                      <span className="flex items-center gap-1 font-mono-tech text-xs tracking-widest uppercase transition-colors duration-200" style={{ color: "oklch(0.45 0.015 285)" }}>
                         View <ChevronRight size={12} />
                       </span>
                     </div>

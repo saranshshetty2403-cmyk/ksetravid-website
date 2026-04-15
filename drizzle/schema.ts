@@ -88,3 +88,40 @@ export const upiSettings = pgTable("upi_settings", {
 });
 export type UpiSettings = typeof upiSettings.$inferSelect;
 export type InsertUpiSettings = typeof upiSettings.$inferInsert;
+
+// ── Orders ────────────────────────────────────────────────────────────────────
+export const orderStatusEnum = pgEnum("order_status", ["pending", "paid", "confirmed", "shipped", "delivered", "cancelled"]);
+
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  // Auto-generated transaction reference shown in UPI remarks
+  txnRef: varchar("txnRef", { length: 32 }).notNull().unique(),
+  // Buyer details
+  buyerName: varchar("buyerName", { length: 256 }).notNull(),
+  buyerPhone: varchar("buyerPhone", { length: 20 }).notNull(),
+  buyerEmail: varchar("buyerEmail", { length: 320 }),
+  // Delivery address
+  addressLine1: text("addressLine1").notNull(),
+  addressLine2: text("addressLine2"),
+  city: varchar("city", { length: 128 }).notNull(),
+  state: varchar("state", { length: 128 }).notNull(),
+  pincode: varchar("pincode", { length: 16 }).notNull(),
+  // Product info (snapshot at time of order)
+  productId: integer("productId").notNull(),
+  productName: varchar("productName", { length: 256 }).notNull(),
+  productCategory: varchar("productCategory", { length: 64 }).notNull(),
+  selectedSize: varchar("selectedSize", { length: 32 }),
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: integer("unitPrice").notNull(),
+  totalAmount: integer("totalAmount").notNull(),
+  // Payment info
+  upiId: varchar("upiId", { length: 128 }).notNull(),
+  paymentStatus: orderStatusEnum("paymentStatus").default("pending").notNull(),
+  paymentNote: text("paymentNote"),
+  // Admin notes
+  adminNotes: text("adminNotes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type Order = typeof orders.$inferSelect;
+export type InsertOrder = typeof orders.$inferInsert;

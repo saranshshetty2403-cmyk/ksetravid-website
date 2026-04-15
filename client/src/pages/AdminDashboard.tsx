@@ -11,7 +11,7 @@ import {
   Image, ShoppingBag, MapPin, CreditCard, Settings,
   LogOut, Plus, Trash2, Edit2, Save, X, Download,
   Upload, ChevronLeft, ChevronRight, Eye, EyeOff,
-  Check, AlertTriangle, RefreshCw
+  Check, AlertTriangle, RefreshCw, ClipboardList, Package, Phone, MapPinned, ChevronDown, ChevronUp
 } from "lucide-react";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ const TEXT = "oklch(0.87 0.02 80)";
 const TEXT_DIM = "oklch(0.55 0.015 285)";
 const LOGO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
-type Section = "images" | "merch" | "tour" | "upi" | "credentials";
+type Section = "images" | "merch" | "tour" | "upi" | "credentials" | "orders";
 
 // ── Shared Input ──────────────────────────────────────────────────────────────
 function Input({ label, value, onChange, type = "text", placeholder = "", required = false }: {
@@ -821,11 +821,195 @@ function CredentialsSettings() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SECTION: ORDERS
+// ═══════════════════════════════════════════════════════════════════════════════
+const STATUS_COLORS: Record<string, string> = {
+  pending:   "oklch(0.65 0.18 60)",
+  paid:      "oklch(0.65 0.18 150)",
+  confirmed: "oklch(0.55 0.22 260)",
+  shipped:   "oklch(0.55 0.22 200)",
+  delivered: "oklch(0.55 0.22 140)",
+  cancelled: "oklch(0.52 0.24 25)",
+};
+
+const STATUS_OPTIONS = ["pending","paid","confirmed","shipped","delivered","cancelled"] as const;
+
+function OrdersSection() {
+  const { data: orders, refetch, isLoading } = trpc.orders.list.useQuery();
+  const updateStatus = trpc.orders.updateStatus.useMutation({ onSuccess: () => { refetch(); toast.success("Status updated"); } });
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+
+  const filtered = orders?.filter(o => filter === "all" || o.paymentStatus === filter) ?? [];
+
+  function downloadOrders() {
+    if (!orders || orders.length === 0) { toast.error("No orders yet"); return; }
+    const csv = [
+      ["Txn Ref","Buyer","Phone","Email","Address","City","State","Pincode","Product","Category","Size","Qty","Unit Price","Total","UPI ID","Status","Date"].join(","),
+      ...orders.map(o => [
+        o.txnRef, o.buyerName, o.buyerPhone, o.buyerEmail ?? "",
+        `"${o.addressLine1}${o.addressLine2 ? " " + o.addressLine2 : ""}"`,
+        o.city, o.state, o.pincode,
+        o.productName, o.productCategory, o.selectedSize ?? "", o.quantity, o.unitPrice, o.totalAmount,
+        o.upiId, o.paymentStatus,
+        new Date(o.createdAt).toLocaleString()
+      ].join(","))
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `ksetravid-orders-${Date.now()}.csv`;
+    a.click();
+    toast.success("Orders CSV downloaded");
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="font-display text-xl tracking-widest uppercase" style={{ color: TEXT }}>Orders</h2>
+          <p className="text-xs font-mono mt-1" style={{ color: TEXT_DIM }}>All customer orders and transaction records</p>
+        </div>
+        <Btn onClick={downloadOrders} variant="ghost" small>
+          <Download size={12} /> Export CSV
+        </Btn>
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {["all", ...STATUS_OPTIONS].map(s => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            className="text-[10px] font-mono tracking-widest uppercase px-3 py-1 transition-all"
+            style={{
+              backgroundColor: filter === s ? (STATUS_COLORS[s] ?? CRIMSON_DIM) : SURFACE2,
+              border: `1px solid ${filter === s ? (STATUS_COLORS[s] ?? CRIMSON) : BORDER}`,
+              color: TEXT,
+            }}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <RefreshCw size={24} className="animate-spin" style={{ color: CRIMSON }} />
+        </div>
+      )}
+
+      {!isLoading && filtered.length === 0 && (
+        <div className="text-center py-16" style={{ color: TEXT_DIM }}>
+          <ClipboardList size={40} className="mx-auto mb-3 opacity-30" />
+          <p className="font-mono text-sm">No orders {filter !== "all" ? `with status "${filter}"` : "yet"}</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filtered.map(order => (
+          <div key={order.id} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}>
+            {/* Order header row */}
+            <div
+              className="flex items-center justify-between px-4 py-3 cursor-pointer"
+              onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+            >
+              <div className="flex items-center gap-4 min-w-0">
+                <span
+                  className="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5 flex-shrink-0"
+                  style={{ backgroundColor: STATUS_COLORS[order.paymentStatus] + "33", border: `1px solid ${STATUS_COLORS[order.paymentStatus]}`, color: STATUS_COLORS[order.paymentStatus] }}
+                >
+                  {order.paymentStatus}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-mono truncate" style={{ color: TEXT }}>{order.txnRef}</p>
+                  <p className="text-[10px] font-mono truncate" style={{ color: TEXT_DIM }}>{order.buyerName} · {order.productName} × {order.quantity}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span className="text-sm font-mono font-bold" style={{ color: CRIMSON }}>₹{order.totalAmount}</span>
+                {expanded === order.id ? <ChevronUp size={14} style={{ color: TEXT_DIM }} /> : <ChevronDown size={14} style={{ color: TEXT_DIM }} />}
+              </div>
+            </div>
+
+            {/* Expanded detail */}
+            {expanded === order.id && (
+              <div className="px-4 pb-4 space-y-4" style={{ borderTop: `1px solid ${BORDER}` }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                  {/* Buyer */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Buyer</p>
+                    <p className="text-sm font-mono" style={{ color: TEXT }}>{order.buyerName}</p>
+                    <p className="text-xs font-mono flex items-center gap-1" style={{ color: TEXT_DIM }}><Phone size={10} />{order.buyerPhone}</p>
+                    {order.buyerEmail && <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>{order.buyerEmail}</p>}
+                  </div>
+                  {/* Delivery address */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Delivery Address</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT }}>{order.addressLine1}</p>
+                    {order.addressLine2 && <p className="text-xs font-mono" style={{ color: TEXT }}>{order.addressLine2}</p>}
+                    <p className="text-xs font-mono flex items-center gap-1" style={{ color: TEXT_DIM }}><MapPinned size={10} />{order.city}, {order.state} — {order.pincode}</p>
+                  </div>
+                  {/* Product */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Product</p>
+                    <p className="text-sm font-mono" style={{ color: TEXT }}>{order.productName}</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>{order.productCategory}{order.selectedSize ? ` · Size: ${order.selectedSize}` : ""} · Qty: {order.quantity}</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>₹{order.unitPrice} × {order.quantity} = <span style={{ color: CRIMSON }}>₹{order.totalAmount}</span></p>
+                  </div>
+                  {/* Payment */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Payment</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT }}>{order.upiId}</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>Txn Ref: {order.txnRef}</p>
+                    {order.paymentNote && <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>{order.paymentNote}</p>}
+                  </div>
+                  {/* Date */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Order Date</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT }}>{new Date(order.createdAt).toLocaleString()}</p>
+                  </div>
+                  {/* Admin notes */}
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Admin Notes</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>{order.adminNotes || "—"}</p>
+                  </div>
+                </div>
+
+                {/* Status updater */}
+                <div className="flex flex-wrap items-center gap-2 pt-2" style={{ borderTop: `1px solid ${BORDER}` }}>
+                  <span className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Update Status:</span>
+                  {STATUS_OPTIONS.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => updateStatus.mutate({ id: order.id, paymentStatus: s })}
+                      disabled={order.paymentStatus === s || updateStatus.isPending}
+                      className="text-[9px] font-mono tracking-widest uppercase px-2 py-1 transition-all disabled:opacity-30"
+                      style={{
+                        backgroundColor: order.paymentStatus === s ? STATUS_COLORS[s] + "44" : SURFACE2,
+                        border: `1px solid ${order.paymentStatus === s ? STATUS_COLORS[s] : BORDER}`,
+                        color: order.paymentStatus === s ? STATUS_COLORS[s] : TEXT_DIM,
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
-  const [section, setSection] = useState<Section>("images");
+  const [section, setSection] = useState<Section>("orders");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: adminCheck, isLoading } = trpc.admin.check.useQuery();
@@ -850,6 +1034,7 @@ export default function AdminDashboard() {
   if (!adminCheck?.isAdmin) return null;
 
   const navItems: { id: Section; label: string; icon: React.ReactNode }[] = [
+    { id: "orders", label: "Orders", icon: <ClipboardList size={16} /> },
     { id: "images", label: "Images", icon: <Image size={16} /> },
     { id: "merch", label: "Merch", icon: <ShoppingBag size={16} /> },
     { id: "tour", label: "Tour Dates", icon: <MapPin size={16} /> },
@@ -947,6 +1132,7 @@ export default function AdminDashboard() {
       {/* Main content */}
       <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         <div className="p-4 lg:p-8 max-w-5xl">
+          {section === "orders" && <OrdersSection />}
           {section === "images" && <ImageManager />}
           {section === "merch" && <MerchEditor />}
           {section === "tour" && <TourEditor />}

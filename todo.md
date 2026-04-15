@@ -35,3 +35,12 @@
 ## Pending
 - [x] Wire About section member photos to DB (member_pritam, member_arunav, member_saurav keys added)
 - [x] Add WhatsApp number to UPI settings (whatsappNumber field added to DB + admin form)
+
+## Order Flow (v2)
+- [x] Add orders table to Postgres schema (buyer name, phone, address, product, size, qty, price, txn ID, status)
+- [x] Push schema migration to Neon
+- [x] Add tRPC procedures: createOrder, listOrders (admin), updateOrderStatus (admin)
+- [x] Rewrite MerchSection checkout modal with delivery info form + UPI deep link
+- [x] UPI deep link pre-fills: amount, UPI ID, transaction ref in remarks/comments
+- [x] Add Orders section to admin dashboard with full order list and status management
+- [x] Add quantity selector (+/-) to each product card in MerchSection

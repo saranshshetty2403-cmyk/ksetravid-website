@@ -1,0 +1,27 @@
+CREATE TYPE "public"."order_status" AS ENUM('pending', 'paid', 'confirmed', 'shipped', 'delivered', 'cancelled');--> statement-breakpoint
+CREATE TABLE "orders" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"txnRef" varchar(32) NOT NULL,
+	"buyerName" varchar(256) NOT NULL,
+	"buyerPhone" varchar(20) NOT NULL,
+	"buyerEmail" varchar(320),
+	"addressLine1" text NOT NULL,
+	"addressLine2" text,
+	"city" varchar(128) NOT NULL,
+	"state" varchar(128) NOT NULL,
+	"pincode" varchar(16) NOT NULL,
+	"productId" integer NOT NULL,
+	"productName" varchar(256) NOT NULL,
+	"productCategory" varchar(64) NOT NULL,
+	"selectedSize" varchar(32),
+	"quantity" integer DEFAULT 1 NOT NULL,
+	"unitPrice" integer NOT NULL,
+	"totalAmount" integer NOT NULL,
+	"upiId" varchar(128) NOT NULL,
+	"paymentStatus" "order_status" DEFAULT 'pending' NOT NULL,
+	"paymentNote" text,
+	"adminNotes" text,
+	"createdAt" timestamp DEFAULT now() NOT NULL,
+	"updatedAt" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "orders_txnRef_unique" UNIQUE("txnRef")
+);

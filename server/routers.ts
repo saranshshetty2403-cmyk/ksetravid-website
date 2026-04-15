@@ -11,6 +11,7 @@ import {
   getUpiSettings, saveUpiSettings,
   seedAdminCredentials, verifyAdminCredentials,
   updateAdminCredentials, getCurrentAdminUsername,
+  createOrder, getOrders, updateOrderStatus, generateTxnRef,
 } from "./db";
 import { ADMIN_COOKIE, signAdminJWT, verifyAdminJWT } from "./adminAuth";
 import { storagePut } from "./storage";
@@ -195,6 +196,47 @@ export const appRouter = router({
         whatsappNumber: z.string().optional().nullable(),
       }))
       .mutation(({ input }) => saveUpiSettings(input)),
+  }),
+
+  // ── Orders ────────────────────────────────────────────────────────────────
+  orders: router({
+    // Public: create a new order (called from checkout form)
+    create: publicProcedure
+      .input(z.object({
+        buyerName: z.string().min(1),
+        buyerPhone: z.string().min(10),
+        buyerEmail: z.string().email().optional().nullable(),
+        addressLine1: z.string().min(1),
+        addressLine2: z.string().optional().nullable(),
+        city: z.string().min(1),
+        state: z.string().min(1),
+        pincode: z.string().min(4),
+        productId: z.number(),
+        productName: z.string().min(1),
+        productCategory: z.string().min(1),
+        selectedSize: z.string().optional().nullable(),
+        quantity: z.number().min(1).default(1),
+        unitPrice: z.number().min(0),
+        totalAmount: z.number().min(0),
+        upiId: z.string().min(1),
+      }))
+      .mutation(async ({ input }) => {
+        const txnRef = generateTxnRef();
+        const order = await createOrder({ ...input, txnRef });
+        return { id: order.id, txnRef: order.txnRef };
+      }),
+
+    // Admin: list all orders
+    list: adminProcedure.query(() => getOrders()),
+
+    // Admin: update order status
+    updateStatus: adminProcedure
+      .input(z.object({
+        id: z.number(),
+        paymentStatus: z.enum(["pending", "paid", "confirmed", "shipped", "delivered", "cancelled"]),
+        adminNotes: z.string().optional(),
+      }))
+      .mutation(({ input }) => updateOrderStatus(input.id, input.paymentStatus, input.adminNotes)),
   }),
 
   // ── File Upload (base64 → S3 CDN) ───────────────────────────────────────────

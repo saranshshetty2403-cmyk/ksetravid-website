@@ -2,10 +2,11 @@
    KSETRAVID NAVBAR — Cosmic Tech-Death Noir
    Desktop: logo left | nav center | CTA right
    Mobile:  hamburger left | logo CENTERED (large) | spacer right
-   Logo: transparent PNG — no blend mode needed
+   Logo: pulled from DB via tRPC (admin-editable)
    ============================================================= */
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 const NAV_LINKS = [
   { label: "Home", href: "#home" },
@@ -17,11 +18,14 @@ const NAV_LINKS = [
   { label: "Contact", href: "#contact" },
 ];
 
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
+const FALLBACK_LOGO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { data: images } = trpc.images.list.useQuery();
+  const logoUrl = images?.find(img => img.key === "logo")?.url ?? FALLBACK_LOGO;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 60);
@@ -54,7 +58,7 @@ export default function Navbar() {
             aria-label="Ksetravid Home"
           >
             <img
-              src={LOGO_URL}
+              src={logoUrl}
               alt="Ksetravid Logo"
               className="h-14 w-auto object-contain"
             />
@@ -120,7 +124,7 @@ export default function Navbar() {
             aria-label="Ksetravid Home"
           >
             <img
-              src={LOGO_URL}
+              src={logoUrl}
               alt="Ksetravid Logo"
               className="h-12 w-auto object-contain"
               style={{ minWidth: "140px" }}
@@ -140,7 +144,7 @@ export default function Navbar() {
         >
           <div className="flex flex-col items-center gap-8 mt-12">
             <img
-              src={LOGO_URL}
+              src={logoUrl}
               alt="Ksetravid"
               className="w-56 object-contain mb-4"
             />

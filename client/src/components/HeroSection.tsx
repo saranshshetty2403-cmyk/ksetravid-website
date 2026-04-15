@@ -3,17 +3,28 @@
    Mobile: fully stacked vertically — logo centered at top,
            then text, then band photo
    Desktop (lg+): asymmetric side-by-side layout
-   Logo: New "Triangle Eye" version (2024–2026)
+   Images: pulled from DB via tRPC (admin-editable)
    ============================================================= */
 import { useEffect, useRef, useState } from "react";
+import { trpc } from "@/lib/trpc";
 
-const HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_hero_bg-PCFrUDfN4sN3ED5yRqYKQC.webp";
-const BAND_PHOTO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png";
-const LOGO_URL = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
+// Fallback URLs (used only if DB is empty / loading)
+const FALLBACK_HERO_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_hero_bg-PCFrUDfN4sN3ED5yRqYKQC.webp";
+const FALLBACK_BAND_PHOTO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png";
+const FALLBACK_LOGO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
 export default function HeroSection() {
   const [visible, setVisible] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
+
+  const { data: images } = trpc.images.list.useQuery();
+
+  const getImg = (key: string, fallback: string) =>
+    images?.find(img => img.key === key)?.url ?? fallback;
+
+  const HERO_BG = getImg("hero_bg", FALLBACK_HERO_BG);
+  const BAND_PHOTO = getImg("hero_band_photo", FALLBACK_BAND_PHOTO);
+  const LOGO_URL = getImg("logo", FALLBACK_LOGO);
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 100);
@@ -270,7 +281,7 @@ export default function HeroSection() {
               style={{
                 borderColor: "oklch(0.52 0.24 25)",
                 backgroundColor: "oklch(0.42 0.22 25 / 0.08)",
-                transitionDelay: "0.55s",
+                transitionDelay: "0.5s",
               }}
             >
               <p className="font-mono-tech text-xs tracking-widest uppercase mb-1" style={{ color: "oklch(0.52 0.24 25)" }}>
@@ -286,12 +297,12 @@ export default function HeroSection() {
 
             {/* CTAs */}
             <div
-              className={`flex flex-wrap gap-3 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-              style={{ transitionDelay: "0.65s" }}
+              className={`flex flex-wrap gap-4 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
+              style={{ transitionDelay: "0.6s" }}
             >
               <button
                 onClick={scrollToMusic}
-                className="btn-crimson-pulse px-6 py-3 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200"
+                className="px-8 py-3 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200"
                 style={{
                   backgroundColor: "oklch(0.42 0.22 25)",
                   color: "oklch(0.97 0.005 80)",
@@ -304,7 +315,7 @@ export default function HeroSection() {
               </button>
               <button
                 onClick={scrollToAbout}
-                className="px-6 py-3 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200 border"
+                className="px-8 py-3 font-mono-tech text-xs tracking-widest uppercase transition-all duration-200 border"
                 style={{
                   borderColor: "oklch(0.87 0.02 80 / 0.3)",
                   color: "oklch(0.87 0.02 80)",
@@ -317,50 +328,28 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Right: Band Photo */}
+          {/* Right: Band photo */}
           <div
-            className={`flex-shrink-0 transition-all duration-1000 ${visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-16"}`}
+            className={`flex-shrink-0 w-80 xl:w-96 transition-all duration-1000 ${visible ? "opacity-100 translate-x-0" : "opacity-0 translate-x-12"}`}
             style={{ transitionDelay: "0.4s" }}
           >
-            <div className="relative" style={{ maxWidth: "420px" }}>
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: "radial-gradient(ellipse at center, oklch(0.42 0.22 25 / 0.25) 0%, transparent 70%)",
-                  transform: "scale(1.1)",
-                }}
-              />
-              <img
-                src={BAND_PHOTO}
-                alt="Ksetravid band"
-                className="relative w-full object-cover"
-                style={{
-                  filter: "contrast(1.1) brightness(0.9)",
-                  maskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 85%, transparent 100%)",
-                  WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 85%, transparent 100%)",
-                  maxHeight: "420px",
-                  objectFit: "cover",
-                  objectPosition: "top",
-                }}
-              />
-            </div>
+            <img
+              src={BAND_PHOTO}
+              alt="Ksetravid band"
+              className="w-full object-cover"
+              style={{
+                filter: "contrast(1.1) brightness(0.9)",
+                maskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%), linear-gradient(to right, transparent 0%, black 5%, black 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 8%, black 88%, transparent 100%), linear-gradient(to right, transparent 0%, black 5%, black 100%)",
+                maskComposite: "intersect",
+                WebkitMaskComposite: "source-in",
+                maxHeight: "600px",
+                objectFit: "cover",
+                objectPosition: "top",
+              }}
+            />
           </div>
-
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-        style={{ color: "oklch(0.45 0.015 285)" }}
-      >
-        <span className="font-mono-tech text-xs tracking-widest uppercase">Scroll</span>
-        <div
-          className="w-px h-12"
-          style={{
-            background: "linear-gradient(to bottom, oklch(0.45 0.015 285), transparent)",
-          }}
-        />
       </div>
     </section>
   );

@@ -5,6 +5,9 @@
 import { useState } from "react";
 import { Instagram, Youtube, Music, ExternalLink, Facebook } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+
+const FALLBACK_LOGO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
 const SOCIAL_LINKS = [
   {
@@ -54,6 +57,8 @@ const SOCIAL_LINKS = [
 export default function ContactSection() {
   const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
   const [sending, setSending] = useState(false);
+  const { data: images } = trpc.images.list.useQuery();
+  const logoUrl = images?.find(img => img.key === "logo")?.url ?? FALLBACK_LOGO;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,7 +273,7 @@ export default function ContactSection() {
             {/* Logo + name */}
             <div className="flex items-center gap-3">
               <img
-                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png"
+                src={logoUrl}
                 alt="Ksetravid"
                 className="w-8 h-8 object-contain"
               />

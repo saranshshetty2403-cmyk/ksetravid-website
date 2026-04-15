@@ -1,62 +1,40 @@
 /* =============================================================
    KSETRAVID GALLERY — Photo grid with lightbox
    Masonry-style layout with hover reveal captions
+   Images: pulled from DB via tRPC (admin-editable)
    ============================================================= */
 import { useState } from "react";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
-const PHOTOS = [
-  {
-    id: 1,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png",
-    alt: "Ksetravid — Dark portrait with mandala",
-    caption: "Ksetravid — Bangalore, 2024",
-    size: "large",
-  },
-  {
-    id: 2,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg",
-    alt: "Ksetravid — Outdoor band photo",
-    caption: "Band photo — Bangalore, 2024",
-    size: "medium",
-  },
-  {
-    id: 3,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg",
-    alt: "Ksetravid — Black and white portrait",
-    caption: "Black & white — Press photo",
-    size: "medium",
-  },
-  {
-    id: 4,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_live_d9615956.jpg",
-    alt: "Ksetravid — Live performance",
-    caption: "Live — Hisaab Barabar India Tour 2025",
-    size: "large",
-  },
-  {
-    id: 5,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_silhouette_03b6ba71.png",
-    alt: "Ksetravid — Silhouette with logo",
-    caption: "Ksetravid — Silhouette promo",
-    size: "medium",
-  },
-  {
-    id: 6,
-    src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/single_anamnesis_ecc6e99c.jpg",
-    alt: "Anamnesis — Single artwork",
-    caption: "Anamnesis — Single artwork, 2024",
-    size: "medium",
-  },
+// Fallback gallery photos (used only if DB is empty / loading)
+const FALLBACK_PHOTOS = [
+  { key: "gallery_1", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_dark_fb7584d3.png", alt: "Ksetravid — Dark portrait with mandala", caption: "Ksetravid — Bangalore, 2024", size: "large" },
+  { key: "gallery_2", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg", alt: "Ksetravid — Outdoor band photo", caption: "Band photo — Bangalore, 2024", size: "medium" },
+  { key: "gallery_3", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg", alt: "Ksetravid — Black and white portrait", caption: "Black & white — Press photo", size: "medium" },
+  { key: "gallery_4", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_live_d9615956.jpg", alt: "Ksetravid — Live performance", caption: "Live — Hisaab Barabar India Tour 2025", size: "large" },
+  { key: "gallery_5", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_silhouette_03b6ba71.png", alt: "Ksetravid — Silhouette with logo", caption: "Ksetravid — Silhouette promo", size: "medium" },
+  { key: "gallery_6", src: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/single_anamnesis_ecc6e99c.jpg", alt: "Anamnesis — Single artwork", caption: "Anamnesis — Single artwork, 2024", size: "medium" },
 ];
 
 export default function GallerySection() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const { data: dbImages } = trpc.images.list.useQuery();
+
+  // Build photos array from DB, falling back to hardcoded values
+  const photos = FALLBACK_PHOTOS.map((fallback) => {
+    const dbImg = dbImages?.find(img => img.key === fallback.key);
+    return {
+      ...fallback,
+      src: dbImg?.url ?? fallback.src,
+      alt: dbImg?.altText ?? fallback.alt,
+    };
+  });
 
   const openLightbox = (index: number) => setLightboxIndex(index);
   const closeLightbox = () => setLightboxIndex(null);
-  const prevPhoto = () => setLightboxIndex((i) => (i !== null ? (i - 1 + PHOTOS.length) % PHOTOS.length : 0));
-  const nextPhoto = () => setLightboxIndex((i) => (i !== null ? (i + 1) % PHOTOS.length : 0));
+  const prevPhoto = () => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : 0));
+  const nextPhoto = () => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : 0));
 
   return (
     <section
@@ -78,9 +56,9 @@ export default function GallerySection() {
 
         {/* Photo grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3 auto-rows-[110px] sm:auto-rows-[150px] md:auto-rows-[200px]">
-          {PHOTOS.map((photo, index) => (
+          {photos.map((photo, index) => (
             <div
-              key={photo.id}
+              key={photo.key}
               className={`relative overflow-hidden cursor-pointer group ${
                 photo.size === "large" ? "col-span-2 row-span-2" : ""
               }`}
@@ -170,15 +148,15 @@ export default function GallerySection() {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={PHOTOS[lightboxIndex].src}
-              alt={PHOTOS[lightboxIndex].alt}
+              src={photos[lightboxIndex].src}
+              alt={photos[lightboxIndex].alt}
               className="max-w-full max-h-[80vh] object-contain"
             />
             <p
               className="font-mono-tech text-xs tracking-widest text-center mt-4"
               style={{ color: "oklch(0.55 0.015 285)" }}
             >
-              {PHOTOS[lightboxIndex].caption}
+              {photos[lightboxIndex].caption}
             </p>
           </div>
           <button

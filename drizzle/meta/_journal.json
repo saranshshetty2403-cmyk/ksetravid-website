@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1776278482006,
+      "tag": "0000_sparkling_gladiator",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1776278620107,
+      "tag": "0001_peaceful_boomer",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1776278886615,
+      "tag": "0002_strong_earthquake",
+      "breakpoints": true
+    }
+  ]
+}

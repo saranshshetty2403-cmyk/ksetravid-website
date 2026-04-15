@@ -3,9 +3,11 @@
    Dark circuit-board background, asymmetric layout
    ============================================================= */
 
-const ABOUT_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_about_bg-mps2bmXs33M4MQ8C7eQV9t.webp";
-const BAND_PHOTO_OUTDOOR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg";
-const BAND_PHOTO_BW = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg";
+import { trpc } from "@/lib/trpc";
+
+const FALLBACK_ABOUT_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_about_bg-mps2bmXs33M4MQ8C7eQV9t.webp";
+const FALLBACK_BAND_PHOTO_OUTDOOR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg";
+const FALLBACK_BAND_PHOTO_BW = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg";
 
 const MEMBERS = [
   {
@@ -26,6 +28,11 @@ const MEMBERS = [
 ];
 
 export default function AboutSection() {
+  const { data: images } = trpc.images.list.useQuery();
+  const ABOUT_BG = images?.find(img => img.key === "about_bg")?.url ?? FALLBACK_ABOUT_BG;
+  const BAND_PHOTO_OUTDOOR = images?.find(img => img.key === "about_band_outdoor")?.url ?? FALLBACK_BAND_PHOTO_OUTDOOR;
+  const BAND_PHOTO_BW = images?.find(img => img.key === "about_band_bw")?.url ?? FALLBACK_BAND_PHOTO_BW;
+
   return (
     <section
       id="about"

@@ -1,0 +1,221 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { COOKIE_NAME } from "@shared/const";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { systemRouter } from "./_core/systemRouter";
+import { publicProcedure, router } from "./_core/trpc";
+import {
+  getTourDates, upsertTourDate, deleteTourDate,
+  getSiteImages, upsertSiteImage,
+  getMerchProducts, upsertMerchProduct, deleteMerchProduct,
+  getUpiSettings, saveUpiSettings,
+} from "./db";
+import {
+  ADMIN_COOKIE,
+  signAdminJWT,
+  verifyAdminJWT,
+  seedInitialCredentials,
+  verifyLogin,
+  replaceCredentials,
+  getCurrentUsername,
+} from "./adminAuth";
+import { storagePut } from "./storage";
+import { nanoid } from "nanoid";
+import { seedDatabase } from "./seed";
+
+// Seed default credentials on startup (no-op if file already exists)
+seedInitialCredentials("ksetravid", "Loudbox2026");
+
+// Seed all initial hardcoded data into DB on first run (idempotent)
+seedDatabase().catch(err => console.error("[Seed] Failed:", err));
+
+// ── Admin guard middleware ─────────────────────────────────────────────────────
+const adminProcedure = publicProcedure.use(async ({ ctx, next }) => {
+  const token = ctx.req.cookies?.[ADMIN_COOKIE];
+  if (!token || !(await verifyAdminJWT(token))) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin login required" });
+  }
+  return next({ ctx });
+});
+
+function getSecureCookieOptions(req: any) {
+  const isSecure =
+    req.protocol === "https" ||
+    req.headers?.["x-forwarded-proto"] === "https";
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: (isSecure ? "none" : "lax") as "none" | "lax",
+    path: "/",
+  };
+}
+
+export const appRouter = router({
+  system: systemRouter,
+
+  // ── Standard auth (kept for system compatibility) ──────────────────────────
+  auth: router({
+    me: publicProcedure.query((opts) => opts.ctx.user),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return { success: true } as const;
+    }),
+  }),
+
+  // ── Admin Auth ─────────────────────────────────────────────────────────────
+  admin: router({
+    // Check if the current request has a valid admin session
+    check: publicProcedure.query(async ({ ctx }) => {
+      const token = ctx.req.cookies?.[ADMIN_COOKIE];
+      if (!token) return { isAdmin: false };
+      const valid = await verifyAdminJWT(token);
+      return { isAdmin: valid };
+    }),
+
+    // Login — checks credentials file only, no hardcoded fallback
+    login: publicProcedure
+      .input(z.object({
+        username: z.string().min(1),
+        password: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const valid = verifyLogin(input.username, input.password);
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid username or password" });
+        }
+        const token = await signAdminJWT();
+        const opts = getSecureCookieOptions(ctx.req);
+        ctx.res.cookie(ADMIN_COOKIE, token, {
+          ...opts,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+        return { success: true };
+      }),
+
+    // Logout — clears the session cookie
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const opts = getSecureCookieOptions(ctx.req);
+      ctx.res.clearCookie(ADMIN_COOKIE, { ...opts, maxAge: -1 });
+      return { success: true };
+    }),
+
+    // Get current username (never the password)
+    getUsername: adminProcedure.query(() => {
+      return { username: getCurrentUsername() ?? "ksetravid" };
+    }),
+
+    /**
+     * Permanently replace credentials.
+     * After this call, the old username + password are gone forever.
+     * The next login MUST use the new credentials.
+     */
+    updateCredentials: adminProcedure
+      .input(z.object({
+        newUsername: z.string().min(3, "Username must be at least 3 characters"),
+        newPassword: z.string().min(6, "Password must be at least 6 characters"),
+      }))
+      .mutation(({ input }) => {
+        replaceCredentials(input.newUsername, input.newPassword);
+        return { success: true };
+      }),
+  }),
+
+  // ── Tour Dates ──────────────────────────────────────────────────────────────
+  tour: router({
+    list: publicProcedure.query(() => getTourDates()),
+
+    save: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        date: z.string().min(1),
+        city: z.string().min(1),
+        venue: z.string().min(1),
+        country: z.string().default("India"),
+        ticketUrl: z.string().nullable().optional(),
+        isSoldOut: z.boolean().default(false),
+        isPast: z.boolean().default(false),
+        sortOrder: z.number().default(0),
+      }))
+      .mutation(({ input }) => upsertTourDate(input)),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteTourDate(input.id)),
+  }),
+
+  // ── Site Images ─────────────────────────────────────────────────────────────
+  images: router({
+    list: publicProcedure.query(() => getSiteImages()),
+
+    update: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        key: z.string().min(1),
+        label: z.string().min(1),
+        section: z.string().min(1),
+        url: z.string().url(),
+        altText: z.string().optional(),
+      }))
+      .mutation(({ input }) => upsertSiteImage(input)),
+  }),
+
+  // ── Merch Products ──────────────────────────────────────────────────────────
+  merch: router({
+    list: publicProcedure.query(() => getMerchProducts()),
+
+    save: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        name: z.string().min(1),
+        category: z.string().min(1),
+        price: z.number().min(0),
+        imageUrl: z.string().url(),
+        description: z.string().optional().nullable(),
+        sizes: z.string(),
+        tags: z.string(),
+        collectionTag: z.string().optional().nullable(),
+        isActive: z.boolean().default(true),
+        sortOrder: z.number().default(0),
+        shopifyUrl: z.string().optional().nullable(),
+      }))
+      .mutation(({ input }) => upsertMerchProduct(input)),
+
+    delete: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteMerchProduct(input.id)),
+  }),
+
+  // ── UPI Settings ────────────────────────────────────────────────────────────
+  upi: router({
+    get: publicProcedure.query(() => getUpiSettings()),
+
+    save: adminProcedure
+      .input(z.object({
+        upiId: z.string().min(1),
+        accountName: z.string().min(1),
+        qrCodeUrl: z.string().url().optional().nullable(),
+      }))
+      .mutation(({ input }) => saveUpiSettings(input)),
+  }),
+
+  // ── File Upload (base64 → S3 CDN) ───────────────────────────────────────────
+  upload: router({
+    uploadFile: adminProcedure
+      .input(z.object({
+        base64: z.string(),
+        filename: z.string(),
+        contentType: z.string(),
+        folder: z.string().default("admin-uploads"),
+      }))
+      .mutation(async ({ input }) => {
+        const ext = input.filename.split(".").pop() ?? "bin";
+        const key = `${input.folder}/${nanoid(12)}.${ext}`;
+        const buffer = Buffer.from(input.base64, "base64");
+        const { url } = await storagePut(key, buffer, input.contentType);
+        return { url, key };
+      }),
+  }),
+});
+
+export type AppRouter = typeof appRouter;

@@ -113,3 +113,15 @@
 
 ## Alert Toggle (v8)
 - [x] Add on/off toggle switch to admin Band Members section alert panel — enable/disable alert without editing the message
+
+## Hosting Migration Guide (v9)
+- [x] Audit all key files (schema, db, routers, env, storage, adminAuth, seed, vercel.json)
+- [x] Add detailed inline comments to drizzle/schema.ts
+- [x] Add detailed inline comments to server/db.ts
+- [x] Add detailed inline comments to server/routers.ts
+- [x] Add detailed inline comments to server/adminAuth.ts
+- [x] Add detailed inline comments to server/seed.ts
+- [x] Add detailed inline comments to server/storage.ts
+- [x] Add detailed inline comments to server/_core/env.ts
+- [x] Add detailed inline comments to vercel.json and package.json scripts
+- [x] Write HOSTING_MIGRATION.md — comprehensive guide for any hosting provider

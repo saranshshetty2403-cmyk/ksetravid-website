@@ -19,13 +19,46 @@ import { TRPCError } from "@trpc/server";
 
 // server/_core/env.ts
 var ENV = {
+  // ── Manus OAuth (only needed if you keep Manus login for end-users) ──────────
+  // VITE_APP_ID is the OAuth application ID issued by the Manus platform.
+  // If you are NOT using Manus OAuth (i.e. you only use the /admin panel),
+  // you can leave this empty — the admin login uses its own JWT system.
   appId: process.env.VITE_APP_ID ?? "",
+  // ── Session / JWT secret ─────────────────────────────────────────────────────
+  // JWT_SECRET is used to sign and verify the admin session cookie.
+  // REQUIRED. Must be at least 32 random characters.
+  // Generate one: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
   cookieSecret: process.env.JWT_SECRET ?? "",
+  // ── Database ─────────────────────────────────────────────────────────────────
+  // The app uses Neon Postgres (serverless HTTP driver — works in serverless and Node.js).
+  // Priority order: KSETRAVID_DB_URL → NEON_DATABASE_URL → DATABASE_URL
+  //
+  //   KSETRAVID_DB_URL  — recommended: set this explicitly on your new host
+  //   NEON_DATABASE_URL — auto-injected by Neon integrations on Vercel / Railway
+  //   DATABASE_URL      — generic fallback (used by many PaaS platforms)
+  //
+  // Format: postgresql://user:password@host/dbname?sslmode=require
+  // Get this from: Neon dashboard → your project → Connection Details → Connection string
   databaseUrl: process.env.KSETRAVID_DB_URL || process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || "",
   neonDatabaseUrl: process.env.KSETRAVID_DB_URL || process.env.NEON_DATABASE_URL || "",
+  // ── Manus OAuth server (only needed for Manus end-user login) ────────────────
+  // Points to the Manus OAuth backend. Leave empty if not using Manus login.
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
+  // ── Owner identification (only needed for Manus end-user login) ──────────────
+  // The Manus open ID of the project owner. Used to auto-assign the "admin" role
+  // to the owner account in the users table. Not needed for the admin panel.
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+  // ── Runtime mode ─────────────────────────────────────────────────────────────
+  // Automatically set by Node.js. Do not set this manually.
   isProduction: process.env.NODE_ENV === "production",
+  // ── Manus Storage API (file uploads — images, QR codes, member photos) ───────
+  // BUILT_IN_FORGE_API_URL — base URL of the Manus storage proxy
+  // BUILT_IN_FORGE_API_KEY — bearer token for the storage proxy
+  //
+  // ⚠️  IMPORTANT FOR MIGRATION:
+  // The current server/storage.ts uses the Manus-hosted storage proxy.
+  // When moving to a different host you MUST replace it with a direct
+  // AWS S3 or Cloudflare R2 implementation. See HOSTING_MIGRATION.md → "File Storage".
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
 };
@@ -181,10 +214,15 @@ var roleEnum = pgEnum("role", ["user", "admin"]);
 var users = pgTable("users", {
   id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
+  // Manus OAuth unique user ID
   name: text("name"),
+  // Display name from OAuth
   email: varchar("email", { length: 320 }),
+  // Email from OAuth (may be null)
   loginMethod: varchar("loginMethod", { length: 64 }),
+  // e.g. "oauth"
   role: roleEnum("role").default("user").notNull(),
+  // "user" or "admin"
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
@@ -193,59 +231,83 @@ var adminCredentials = pgTable("admin_credentials", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 128 }).notNull().unique(),
   passwordHash: varchar("passwordHash", { length: 256 }).notNull(),
+  // SHA-256 + salt
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var tourDates = pgTable("tour_dates", {
   id: serial("id").primaryKey(),
   date: varchar("date", { length: 32 }).notNull(),
+  // Display string, e.g. "15 Apr 2026"
   city: varchar("city", { length: 128 }).notNull(),
   venue: varchar("venue", { length: 256 }).notNull(),
   country: varchar("country", { length: 64 }).default("India").notNull(),
   ticketUrl: text("ticketUrl"),
+  // Optional link to buy tickets
   isSoldOut: boolean("isSoldOut").default(false).notNull(),
   isPast: boolean("isPast").default(false).notNull(),
+  // Past shows are shown differently
   sortOrder: integer("sortOrder").default(0).notNull(),
+  // Lower = shown first
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var siteImages = pgTable("site_images", {
   id: serial("id").primaryKey(),
   key: varchar("key", { length: 128 }).notNull().unique(),
+  // Stable identifier, e.g. "hero_bg"
   label: varchar("label", { length: 256 }).notNull(),
+  // Human-readable name for admin UI
   section: varchar("section", { length: 64 }).notNull(),
+  // e.g. "Hero", "Gallery", "Members"
   url: text("url").notNull(),
+  // Public CDN URL of the image
   altText: varchar("altText", { length: 256 }),
+  // SEO alt text
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var merchProducts = pgTable("merch_products", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 256 }).notNull(),
   category: varchar("category", { length: 64 }).notNull(),
+  // e.g. "tees", "shorts", "tanks"
   price: integer("price").notNull(),
+  // Price in INR (rupees)
   imageUrl: text("imageUrl").notNull(),
+  // Public CDN URL of product image
   description: text("description"),
+  // Optional product description
   sizes: text("sizes").notNull(),
+  // Comma-separated, e.g. "S,M,L,XL,2XL"
   tags: text("tags").notNull(),
+  // Comma-separated filter tags
   collectionTag: varchar("collectionTag", { length: 64 }),
+  // e.g. "Berserker", "Nomad"
   isActive: boolean("isActive").default(true).notNull(),
+  // false = hidden from shop
   sortOrder: integer("sortOrder").default(0).notNull(),
+  // Lower = shown first
   shopifyUrl: text("shopifyUrl"),
+  // Optional Shopify product link
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var upiSettings = pgTable("upi_settings", {
   id: serial("id").primaryKey(),
   upiId: varchar("upiId", { length: 128 }).notNull(),
+  // e.g. "nikhilraj2110@oksbi"
   accountName: varchar("accountName", { length: 128 }).notNull(),
+  // Name shown in UPI app
   qrCodeUrl: text("qrCodeUrl"),
+  // Optional QR code CDN URL
   whatsappNumber: varchar("whatsappNumber", { length: 32 }),
+  // For order confirmation via WhatsApp
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var orderStatusEnum = pgEnum("order_status", ["pending", "paid", "confirmed", "shipped", "delivered", "cancelled"]);
 var orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  // Auto-generated transaction reference shown in UPI remarks
+  // Auto-generated transaction reference shown in UPI remarks (e.g. "KSV-20260415-A3X9")
   txnRef: varchar("txnRef", { length: 32 }).notNull().unique(),
   // Buyer details
   buyerName: varchar("buyerName", { length: 256 }).notNull(),
@@ -257,27 +319,30 @@ var orders = pgTable("orders", {
   city: varchar("city", { length: 128 }).notNull(),
   state: varchar("state", { length: 128 }).notNull(),
   pincode: varchar("pincode", { length: 16 }).notNull(),
-  // Product info (snapshot at time of order)
+  // Product info (snapshot at time of order — not a FK to avoid stale data)
   productId: integer("productId").notNull(),
   productName: varchar("productName", { length: 256 }).notNull(),
   productCategory: varchar("productCategory", { length: 64 }).notNull(),
   selectedSize: varchar("selectedSize", { length: 32 }),
   quantity: integer("quantity").default(1).notNull(),
   unitPrice: integer("unitPrice").notNull(),
+  // INR
   totalAmount: integer("totalAmount").notNull(),
+  // INR = unitPrice × quantity
   // Payment info
   upiId: varchar("upiId", { length: 128 }).notNull(),
+  // Snapshot of UPI ID at time of order
   paymentStatus: orderStatusEnum("paymentStatus").default("pending").notNull(),
   paymentNote: text("paymentNote"),
   // Payment method tracking
   paymentMethod: varchar("paymentMethod", { length: 32 }).default("manual"),
   // 'razorpay' | 'manual'
   razorpayOrderId: varchar("razorpayOrderId", { length: 128 }),
-  // Razorpay order ID
+  // Razorpay order ID (set before payment)
   razorpayPaymentId: varchar("razorpayPaymentId", { length: 128 }),
-  // Razorpay payment ID (after success)
+  // Razorpay payment ID (set after success)
   utrNumber: varchar("utrNumber", { length: 64 }),
-  // Manual UTR fallback
+  // Manual UTR fallback (customer-entered)
   // Admin notes
   adminNotes: text("adminNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -289,23 +354,24 @@ var bandMembers = pgTable("band_members", {
   role: varchar("role", { length: 128 }).notNull(),
   // e.g. "Guitars / Vocals"
   photoUrl: text("photoUrl"),
-  // CDN URL
+  // CDN URL — null shows a styled initial avatar
   bio: text("bio"),
-  // Short bio / fun fact
+  // Short bio / fun fact (optional)
   isActive: boolean("isActive").default(true).notNull(),
-  // false = former member
+  // false = former member, hidden from homepage
   sortOrder: integer("sortOrder").default(0).notNull(),
+  // Lower = shown first
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
 var bandAlerts = pgTable("band_alerts", {
   id: serial("id").primaryKey(),
   message: text("message").notNull(),
-  // Full alert text
+  // Full alert text shown to visitors
   alertType: varchar("alertType", { length: 64 }).default("recruiting"),
-  // 'recruiting' | 'vacancy' | 'custom'
+  // 'recruiting' | 'hiatus' | 'announcement' | 'departure'
   isActive: boolean("isActive").default(true).notNull(),
-  // Toggle visibility on homepage
+  // Toggle visibility on homepage instantly
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });

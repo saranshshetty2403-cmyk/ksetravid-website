@@ -1,8 +1,36 @@
 /**
+ * ═══════════════════════════════════════════════════════════════════════════════
  * KSETRAVID — DATABASE SEEDER
- * Seeds all existing hardcoded data into the database on first run.
- * This is idempotent — it only inserts if the table is empty.
- * Called from routers.ts on server startup.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * This file seeds all initial data into the database on first run.
+ * It is called automatically by server/routers.ts on every server startup.
+ * All seed operations are IDEMPOTENT — they check if data already exists
+ * before inserting, so it is safe to restart the server multiple times.
+ *
+ * ── WHAT GETS SEEDED ───────────────────────────────────────────────────────────
+ *   Tour Dates      — 4 initial past shows
+ *   Site Images     — 16 image slots with default CDN URLs
+ *   Merch Products  — 8 products across 4 collections
+ *   UPI Settings    — Default UPI ID (nikhilraj2110@oksbi)
+ *
+ * ── ADMIN CREDENTIALS ──────────────────────────────────────────────────────────
+ * Admin credentials are seeded separately by seedAdminCredentials() in db.ts.
+ * Default: username=ksetravid, password=Loudbox2026
+ * IMPORTANT: Change these immediately after first login via Admin Dashboard.
+ *
+ * ── MIGRATION NOTE ────────────────────────────────────────────────────────────
+ * When migrating to a new host with an empty database:
+ *   1. Set KSETRAVID_DB_URL to the new Postgres connection string
+ *   2. Run: pnpm db:push  (creates all tables from drizzle/schema.ts)
+ *   3. Start the server — this file runs automatically and fills the tables
+ *   4. Log in at /admin/login with ksetravid / Loudbox2026
+ *   5. Update credentials, UPI settings, images, and tour dates via the dashboard
+ *
+ * To preserve existing data from the old database, export it from Neon
+ * (old project) and import into the new Neon project using pg_dump/pg_restore
+ * or the Neon SQL editor. In that case, the seed will be a no-op (tables not empty).
+ * ═══════════════════════════════════════════════════════════════════════════════
  */
 
 import {

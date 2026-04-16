@@ -1,3 +1,45 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * KSETRAVID — DATABASE QUERY HELPERS
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * This file contains every database query used by the application.
+ * It is the ONLY place that directly touches the database tables.
+ * All tRPC procedures in server/routers.ts call these helpers — they never
+ * write raw SQL or call Drizzle directly.
+ *
+ * ── DATABASE DRIVER ────────────────────────────────────────────────────────────
+ * Uses @neondatabase/serverless (HTTP-based Postgres driver).
+ * This works in both long-running Node.js servers AND serverless functions
+ * (Vercel, Cloudflare Workers) because it uses HTTP instead of a persistent
+ * TCP connection. No connection pool management is needed.
+ *
+ * ── REQUIRED ENV VAR ───────────────────────────────────────────────────────────
+ * KSETRAVID_DB_URL (or NEON_DATABASE_URL) — Neon Postgres connection string.
+ * Format: postgresql://user:password@host/dbname?sslmode=require
+ * Get from: Neon dashboard → your project → Connection Details.
+ *
+ * ── PASSWORD HASHING ───────────────────────────────────────────────────────────
+ * Admin passwords are hashed with SHA-256 + a static salt before storage.
+ * Hash formula: SHA256(password + "ksetravid_salt_2026")
+ * To reset the admin password manually via SQL, first generate the hash:
+ *   node -e "const c=require('crypto'); console.log(c.createHash('sha256').update('YourNewPassword' + 'ksetravid_salt_2026').digest('hex'));"
+ * Then run in Neon SQL editor:
+ *   UPDATE admin_credentials SET \"passwordHash\" = '<hash_output>' WHERE username = 'ksetravid';
+ *
+ * ── QUERY HELPER SECTIONS ────────────────────────────────────────────────────────
+ *   Users           — Manus OAuth user upsert
+ *   Admin           — Credential verification and update
+ *   Tour Dates      — CRUD for live show listings
+ *   Site Images     — CRUD for all replaceable website images
+ *   Merch Products  — CRUD for the merchandise catalog
+ *   UPI Settings    — Read/update payment details
+ *   Orders          — Create, list, update status, Razorpay fields
+ *   Band Members    — CRUD for current/former members
+ *   Band Alerts     — Create, read, update, toggle the homepage alert
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import { eq, asc, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";

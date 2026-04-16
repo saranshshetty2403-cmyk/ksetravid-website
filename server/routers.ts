@@ -1,3 +1,41 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * KSETRAVID — tRPC ROUTER (ALL API PROCEDURES)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ * This file defines every API endpoint (called "procedures" in tRPC).
+ * The frontend calls these via the trpc.* hooks in client/src/lib/trpc.ts.
+ * There are NO REST endpoints — all communication goes through tRPC over HTTP.
+ *
+ * ── HOW tRPC WORKS ─────────────────────────────────────────────────────────────
+ * All requests go to POST /api/trpc/<router>.<procedure>
+ * The frontend uses trpc.routerName.procedureName.useQuery() or .useMutation()
+ * Types are shared automatically — no separate API contract files needed.
+ *
+ * ── PROCEDURE TYPES ─────────────────────────────────────────────────────────────
+ *   publicProcedure  — No auth required. Anyone can call it.
+ *   adminProcedure   — Requires a valid admin JWT cookie. Throws UNAUTHORIZED
+ *                      if the cookie is missing or expired.
+ *
+ * ── ROUTER SECTIONS ─────────────────────────────────────────────────────────────
+ *   admin.*     — Login, logout, credential management (admin only)
+ *   tour.*      — List tour dates (public), CRUD (admin only)
+ *   images.*    — List site images (public), update (admin only)
+ *   merch.*     — List products (public), CRUD (admin only)
+ *   upi.*       — Get UPI settings (public), update (admin only)
+ *   orders.*    — Create order (public), list/update (admin only)
+ *   razorpay.*  — Create Razorpay order, verify payment (public)
+ *   band.*      — Get members + alert (public), CRUD (admin only)
+ *   system.*    — Owner notifications (system)
+ *
+ * ── STARTUP SIDE EFFECTS ─────────────────────────────────────────────────────────
+ * When this module is first imported, it immediately:
+ *   1. Seeds default admin credentials (ksetravid / Loudbox2026) if not in DB
+ *   2. Seeds all initial data (images, tour dates, merch, UPI) if tables are empty
+ * Both operations are idempotent — safe to run on every server restart.
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "../shared/const";

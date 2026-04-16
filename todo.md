@@ -125,3 +125,11 @@
 - [x] Add detailed inline comments to server/_core/env.ts
 - [x] Add detailed inline comments to vercel.json and package.json scripts
 - [x] Write HOSTING_MIGRATION.md — comprehensive guide for any hosting provider
+
+## Image Upload Fix (v10)
+- [x] Diagnose storage upload error (BUILT_IN_FORGE_API_URL/KEY missing) in storage.ts
+- [x] Fix image upload in Image Manager (AdminDashboard)
+- [x] Fix image upload in Band Member photo upload
+- [x] Fix image upload in Merch product image upload
+- [x] Fix image upload in UPI QR code upload
+- [x] Verify all upload paths work end-to-end

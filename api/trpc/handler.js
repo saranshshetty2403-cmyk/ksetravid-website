@@ -52,15 +52,21 @@ var ENV = {
   // Automatically set by Node.js. Do not set this manually.
   isProduction: process.env.NODE_ENV === "production",
   // ── Manus Storage API (file uploads — images, QR codes, member photos) ───────
-  // BUILT_IN_FORGE_API_URL — base URL of the Manus storage proxy
-  // BUILT_IN_FORGE_API_KEY — bearer token for the storage proxy
+  // BUILT_IN_FORGE_API_URL — base URL of the Manus storage proxy (server-side)
+  // BUILT_IN_FORGE_API_KEY — bearer token for the storage proxy (server-side)
+  //
+  // Multiple fallback names are checked in priority order:
+  //   1. KSETRAVID_FORGE_API_URL / KSETRAVID_FORGE_API_KEY  (explicit project-specific override)
+  //   2. BUILT_IN_FORGE_API_URL / BUILT_IN_FORGE_API_KEY    (auto-injected by the platform)
+  //   3. VITE_FRONTEND_FORGE_API_URL / VITE_FRONTEND_FORGE_API_KEY  (frontend variant, same value)
+  //
+  // This multi-fallback ensures uploads work even if one env var name changes.
   //
   // ⚠️  IMPORTANT FOR MIGRATION:
-  // The current server/storage.ts uses the Manus-hosted storage proxy.
-  // When moving to a different host you MUST replace it with a direct
+  // When moving to a different host you MUST replace server/storage.ts with a direct
   // AWS S3 or Cloudflare R2 implementation. See HOSTING_MIGRATION.md → "File Storage".
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
+  forgeApiUrl: process.env.KSETRAVID_FORGE_API_URL || process.env.BUILT_IN_FORGE_API_URL || process.env.VITE_FRONTEND_FORGE_API_URL || "",
+  forgeApiKey: process.env.KSETRAVID_FORGE_API_KEY || process.env.BUILT_IN_FORGE_API_KEY || process.env.VITE_FRONTEND_FORGE_API_KEY || ""
 };
 
 // server/_core/notification.ts
@@ -653,7 +659,7 @@ function getStorageConfig() {
   const apiKey = ENV.forgeApiKey;
   if (!baseUrl || !apiKey) {
     throw new Error(
-      "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
+      "Storage upload failed: API credentials not found. Set KSETRAVID_FORGE_API_URL and KSETRAVID_FORGE_API_KEY in your environment. On the Manus platform these are auto-injected as BUILT_IN_FORGE_API_URL / BUILT_IN_FORGE_API_KEY. See HOSTING_MIGRATION.md for migration instructions."
     );
   }
   return { baseUrl: baseUrl.replace(/\/+$/, ""), apiKey };

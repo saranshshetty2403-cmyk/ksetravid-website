@@ -67,7 +67,10 @@ function getStorageConfig(): StorageConfig {
 
   if (!baseUrl || !apiKey) {
     throw new Error(
-      "Storage proxy credentials missing: set BUILT_IN_FORGE_API_URL and BUILT_IN_FORGE_API_KEY"
+      "Storage upload failed: API credentials not found. " +
+      "Set KSETRAVID_FORGE_API_URL and KSETRAVID_FORGE_API_KEY in your environment. " +
+      "On the Manus platform these are auto-injected as BUILT_IN_FORGE_API_URL / BUILT_IN_FORGE_API_KEY. " +
+      "See HOSTING_MIGRATION.md for migration instructions."
     );
   }
 

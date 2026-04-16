@@ -67,3 +67,19 @@
 - [x] Frontend: manual UPI flow with QR + UTR entry field
 - [x] Frontend: order confirmation screen shows payment method used
 - [x] Admin panel: show payment method (Razorpay/Manual) and UTR/transaction ID in order details
+
+## Band Member Management (v5)
+- [ ] Add band_members table to schema (name, role, photo_url, bio, sort_order, is_active)
+- [ ] Add band_alerts table to schema (message, is_active, alert_type e.g. "recruiting"/"vacancy")
+- [ ] Push schema migration to Neon
+- [ ] Seed existing members (Pritam, Arunav, Saurav + others) into band_members table
+- [ ] tRPC procedures: listMembers, upsertMember, deleteMember (admin)
+- [ ] tRPC procedures: getAlert, saveAlert (admin + public read)
+- [ ] Admin dashboard: "Band Members" section — add/edit/delete member cards with photo upload
+- [ ] Admin dashboard: "Band Alert" section — edit alert message, toggle active/inactive
+- [ ] Homepage About section: render members from DB (not hardcoded)
+- [ ] Homepage About section: show/hide alert banner based on DB active flag
+
+## Image Manager Fix (v5)
+- [ ] Diagnose why some images are not showing in admin Image Manager
+- [ ] Fix broken image previews in admin dashboard Image Manager section

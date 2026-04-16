@@ -10,6 +10,7 @@ import {
   merchProducts, InsertMerchProduct,
   upiSettings, InsertUpiSettings,
   orders, InsertOrder,
+  bandMembers, bandAlerts,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -319,4 +320,74 @@ export async function setOrderRazorpayOrderId(id: number, razorpayOrderId: strin
   await db.update(orders)
     .set({ razorpayOrderId, paymentMethod: "razorpay", updatedAt: new Date() })
     .where(eq(orders.id, id));
+}
+
+// ── Band Members ──────────────────────────────────────────────────────────────
+
+export async function getBandMembers() {
+  const db = getDb();
+  if (!db) return [];
+  return db.select().from(bandMembers).orderBy(bandMembers.sortOrder, bandMembers.id);
+}
+
+export async function upsertBandMember(input: {
+  id?: number;
+  name: string;
+  role: string;
+  photoUrl?: string | null;
+  bio?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+}) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  const { id, ...data } = input;
+  if (id) {
+    await db.update(bandMembers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bandMembers.id, id));
+    return { id };
+  } else {
+    const [row] = await db.insert(bandMembers)
+      .values({ ...data, isActive: data.isActive ?? true, sortOrder: data.sortOrder ?? 0 })
+      .returning({ id: bandMembers.id });
+    return row;
+  }
+}
+
+export async function deleteBandMember(id: number) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(bandMembers).where(eq(bandMembers.id, id));
+}
+
+// ── Band Alerts ───────────────────────────────────────────────────────────────
+
+export async function getBandAlert() {
+  const db = getDb();
+  if (!db) return null;
+  const rows = await db.select().from(bandAlerts).orderBy(bandAlerts.id).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function saveBandAlert(input: {
+  id?: number;
+  message: string;
+  alertType?: string;
+  isActive: boolean;
+}) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  const { id, ...data } = input;
+  if (id) {
+    await db.update(bandAlerts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bandAlerts.id, id));
+    return { id };
+  } else {
+    const [row] = await db.insert(bandAlerts)
+      .values({ ...data, alertType: data.alertType ?? "recruiting" })
+      .returning({ id: bandAlerts.id });
+    return row;
+  }
 }

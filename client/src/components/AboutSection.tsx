@@ -1,6 +1,6 @@
 /* =============================================================
    KSETRAVID ABOUT — Band bio + members grid
-   Dark circuit-board background, asymmetric layout
+   Members and alert are now fully DB-driven via admin dashboard
    ============================================================= */
 
 import { trpc } from "@/lib/trpc";
@@ -9,32 +9,25 @@ const FALLBACK_ABOUT_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701
 const FALLBACK_BAND_PHOTO_OUTDOOR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg";
 const FALLBACK_BAND_PHOTO_BW = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg";
 
-const MEMBERS = [
-  {
-    name: "Pritam Middey",
-    role: "Guitars",
-    dbKey: "member_pritam",
-    description: "The architect of Ksetravid's intricate riff structures, blending technical death metal precision with progressive melodic sensibility.",
-  },
-  {
-    name: "Arunav Bhattacharjee",
-    role: "Bass",
-    dbKey: "member_arunav",
-    description: "Low-end foundation and harmonic depth. Also active in Sugar! and ex-Nihilus, bringing cross-genre versatility to the rhythm section.",
-  },
-  {
-    name: "Nikhil TR",
-    role: "Drums",
-    dbKey: "member_nikhil",
-    description: "Explosive technical drumming forged across Demonic Resurrection, Godless, and Incendiarius. The rhythmic engine of Ksetravid's chaos.",
-  },
-];
+// Alert type → icon + accent color
+const ALERT_STYLES: Record<string, { icon: string; borderColor: string; bgColor: string; labelColor: string }> = {
+  recruiting:   { icon: "⚡", borderColor: "oklch(0.62 0.18 60)",  bgColor: "oklch(0.62 0.18 60 / 0.06)",  labelColor: "oklch(0.62 0.18 60)" },
+  hiatus:       { icon: "⏸",  borderColor: "oklch(0.55 0.15 285)", bgColor: "oklch(0.55 0.15 285 / 0.06)", labelColor: "oklch(0.65 0.015 285)" },
+  announcement: { icon: "📢", borderColor: "oklch(0.52 0.24 25)",  bgColor: "oklch(0.52 0.24 25 / 0.06)",  labelColor: "oklch(0.52 0.24 25)" },
+  departure:    { icon: "🚪", borderColor: "oklch(0.52 0.24 25)",  bgColor: "oklch(0.52 0.24 25 / 0.06)",  labelColor: "oklch(0.52 0.24 25)" },
+};
 
 export default function AboutSection() {
   const { data: images } = trpc.images.list.useQuery();
+  const { data: members = [] } = trpc.band.getMembers.useQuery();
+  const { data: alert } = trpc.band.getAlert.useQuery();
+
   const ABOUT_BG = images?.find(img => img.key === "about_bg")?.url ?? FALLBACK_ABOUT_BG;
   const BAND_PHOTO_OUTDOOR = images?.find(img => img.key === "about_band_outdoor")?.url ?? FALLBACK_BAND_PHOTO_OUTDOOR;
   const BAND_PHOTO_BW = images?.find(img => img.key === "about_band_bw")?.url ?? FALLBACK_BAND_PHOTO_BW;
+
+  const activeMembers = members.filter(m => m.isActive);
+  const alertStyle = ALERT_STYLES[alert?.alertType ?? "recruiting"] ?? ALERT_STYLES.recruiting;
 
   return (
     <section
@@ -45,10 +38,7 @@ export default function AboutSection() {
       {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{
-          backgroundImage: `url(${ABOUT_BG})`,
-          opacity: 0.15,
-        }}
+        style={{ backgroundImage: `url(${ABOUT_BG})`, opacity: 0.15 }}
       />
 
       <div className="container relative z-10">
@@ -102,11 +92,7 @@ export default function AboutSection() {
               src={BAND_PHOTO_OUTDOOR}
               alt="Ksetravid band"
               className="w-full object-cover"
-              style={{
-                filter: "contrast(1.05) brightness(0.85)",
-                maxHeight: "420px",
-                objectPosition: "center top",
-              }}
+              style={{ filter: "contrast(1.05) brightness(0.85)", maxHeight: "420px", objectPosition: "center top" }}
             />
             {/* Offset second photo */}
             <div
@@ -120,21 +106,9 @@ export default function AboutSection() {
                 style={{ filter: "grayscale(100%) contrast(1.2)" }}
               />
             </div>
-            {/* Crimson corner accent */}
-            <div
-              className="absolute top-0 left-0 w-8 h-8"
-              style={{
-                borderTop: "2px solid oklch(0.52 0.24 25)",
-                borderLeft: "2px solid oklch(0.52 0.24 25)",
-              }}
-            />
-            <div
-              className="absolute bottom-0 right-0 w-8 h-8"
-              style={{
-                borderBottom: "2px solid oklch(0.52 0.24 25)",
-                borderRight: "2px solid oklch(0.52 0.24 25)",
-              }}
-            />
+            {/* Corner accents */}
+            <div className="absolute top-0 left-0 w-8 h-8" style={{ borderTop: "2px solid oklch(0.52 0.24 25)", borderLeft: "2px solid oklch(0.52 0.24 25)" }} />
+            <div className="absolute bottom-0 right-0 w-8 h-8" style={{ borderBottom: "2px solid oklch(0.52 0.24 25)", borderRight: "2px solid oklch(0.52 0.24 25)" }} />
           </div>
         </div>
 
@@ -147,91 +121,88 @@ export default function AboutSection() {
             THE MEMBERS
           </h3>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {MEMBERS.map((member, i) => {
-              const memberPhoto = images?.find(img => img.key === member.dbKey)?.url;
-              return (
-              <div
-                key={member.name}
-                className="card-hover-crimson border relative overflow-hidden"
-                style={{
-                  borderColor: "oklch(1 0 0 / 0.08)",
-                  backgroundColor: "oklch(0.10 0.006 285)",
-                }}
-              >
-                {/* Member photo */}
-                {memberPhoto ? (
-                  <div className="w-full h-48 overflow-hidden">
-                    <img
-                      src={memberPhoto}
-                      alt={member.name}
-                      className="w-full h-full object-cover object-top"
-                      style={{ filter: "contrast(1.05) brightness(0.9)" }}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="w-full h-24 flex items-center justify-center"
-                    style={{ backgroundColor: "oklch(0.12 0.008 285)" }}
-                  >
-                    <span className="font-display text-4xl opacity-20" style={{ color: "oklch(0.52 0.24 25)" }}>
-                      {member.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="p-6">
-                {/* Number accent */}
-                <span
-                  className="absolute top-4 right-4 font-display text-5xl opacity-10"
-                  style={{ color: "oklch(0.52 0.24 25)" }}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-
-                {/* Role badge */}
+          {activeMembers.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {activeMembers.map((member, i) => (
                 <div
-                  className="inline-block font-mono-tech text-xs tracking-widest uppercase px-2 py-1 mb-4"
-                  style={{
-                    backgroundColor: "oklch(0.42 0.22 25 / 0.15)",
-                    color: "oklch(0.52 0.24 25)",
-                    border: "1px solid oklch(0.42 0.22 25 / 0.3)",
-                  }}
+                  key={member.id}
+                  className="card-hover-crimson border relative overflow-hidden"
+                  style={{ borderColor: "oklch(1 0 0 / 0.08)", backgroundColor: "oklch(0.10 0.006 285)" }}
                 >
-                  {member.role}
+                  {/* Member photo */}
+                  {member.photoUrl ? (
+                    <div className="w-full h-48 overflow-hidden">
+                      <img
+                        src={member.photoUrl}
+                        alt={member.name}
+                        className="w-full h-full object-cover object-top"
+                        style={{ filter: "contrast(1.05) brightness(0.9)" }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-full h-24 flex items-center justify-center" style={{ backgroundColor: "oklch(0.12 0.008 285)" }}>
+                      <span className="font-display text-4xl opacity-20" style={{ color: "oklch(0.52 0.24 25)" }}>
+                        {member.name.charAt(0)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="p-6">
+                    {/* Number accent */}
+                    <span className="absolute top-4 right-4 font-display text-5xl opacity-10" style={{ color: "oklch(0.52 0.24 25)" }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+
+                    {/* Role badge */}
+                    <div
+                      className="inline-block font-mono-tech text-xs tracking-widest uppercase px-2 py-1 mb-4"
+                      style={{ backgroundColor: "oklch(0.42 0.22 25 / 0.15)", color: "oklch(0.52 0.24 25)", border: "1px solid oklch(0.42 0.22 25 / 0.3)" }}
+                    >
+                      {member.role}
+                    </div>
+
+                    <h4 className="font-display text-xl mb-3" style={{ color: "oklch(0.93 0.015 80)" }}>
+                      {member.name}
+                    </h4>
+                    {member.bio && (
+                      <p className="font-body text-sm leading-relaxed" style={{ color: "oklch(0.60 0.015 285)" }}>
+                        {member.bio}
+                      </p>
+                    )}
+                  </div>
                 </div>
-
-                <h4 className="font-display text-xl mb-3" style={{ color: "oklch(0.93 0.015 80)" }}>
-                  {member.name}
-                </h4>
-                <p className="font-body text-sm leading-relaxed" style={{ color: "oklch(0.60 0.015 285)" }}>
-                  {member.description}
-                </p>
-                </div>
-              </div>
-              );
-            })}
-
-          </div>
-
-          {/* Vocalist search notice */}
-          <div
-            className="mt-8 p-5 border-l-2 flex items-start gap-4"
-            style={{
-              borderColor: "oklch(0.62 0.18 60)",
-              backgroundColor: "oklch(0.62 0.18 60 / 0.06)",
-            }}
-          >
-            <span className="font-mono-tech text-lg" style={{ color: "oklch(0.62 0.18 60)" }}>⚡</span>
-            <div>
-              <p className="font-mono-tech text-xs tracking-widest uppercase mb-1" style={{ color: "oklch(0.62 0.18 60)" }}>
-                Vocalist Search — 2026
-              </p>
-              <p className="font-body text-sm" style={{ color: "oklch(0.65 0.015 285)" }}>
-                Following the departure of Siddhant Sarkar in March 2026, Ksetravid is actively seeking a new vocalist. The band continues to write and prepare for the release of their debut album <em>God Playing Dice</em>.
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center border" style={{ borderColor: "oklch(1 0 0 / 0.08)", backgroundColor: "oklch(0.10 0.006 285)" }}>
+              <p className="font-mono-tech text-xs tracking-widest uppercase" style={{ color: "oklch(0.55 0.015 285)" }}>
+                Lineup details coming soon
               </p>
             </div>
-          </div>
+          )}
+
+          {/* Dynamic alert banner — shown only when isActive = true */}
+          {alert?.isActive && alert.message && (
+            <div
+              className="mt-8 p-5 border-l-2 flex items-start gap-4"
+              style={{ borderColor: alertStyle.borderColor, backgroundColor: alertStyle.bgColor }}
+            >
+              <span className="font-mono-tech text-lg" style={{ color: alertStyle.labelColor }}>
+                {alertStyle.icon}
+              </span>
+              <div>
+                <p className="font-mono-tech text-xs tracking-widest uppercase mb-1" style={{ color: alertStyle.labelColor }}>
+                  {alert.alertType === "recruiting" && "Open Position"}
+                  {alert.alertType === "hiatus" && "Band Hiatus"}
+                  {alert.alertType === "announcement" && "Announcement"}
+                  {alert.alertType === "departure" && "Member Departure"}
+                </p>
+                <p className="font-body text-sm" style={{ color: "oklch(0.65 0.015 285)" }}>
+                  {alert.message}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

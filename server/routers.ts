@@ -12,6 +12,8 @@ import {
   updateAdminCredentials, getCurrentAdminUsername,
   createOrder, getOrders, updateOrderStatus, generateTxnRef,
   updateOrderRazorpay, updateOrderUTR, setOrderRazorpayOrderId, getOrderById,
+  getBandMembers, upsertBandMember, deleteBandMember,
+  getBandAlert, saveBandAlert,
 } from "./db";
 import { ADMIN_COOKIE, signAdminJWT, verifyAdminJWT } from "./adminAuth";
 import { storagePut } from "./storage";
@@ -299,6 +301,41 @@ export const appRouter = router({
         adminNotes: z.string().optional(),
       }))
       .mutation(({ input }) => updateOrderStatus(input.id, input.paymentStatus, input.adminNotes)),
+  }),
+
+  // ── Band Members (public read, admin write) ────────────────────────────────
+  band: router({
+    // Public: homepage reads members and alert
+    getMembers: publicProcedure.query(() => getBandMembers()),
+    getAlert: publicProcedure.query(() => getBandAlert()),
+
+    // Admin: upsert a member (add or edit)
+    upsertMember: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        name: z.string().min(1),
+        role: z.string().min(1),
+        photoUrl: z.string().nullable().optional(),
+        bio: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+        sortOrder: z.number().optional(),
+      }))
+      .mutation(({ input }) => upsertBandMember(input)),
+
+    // Admin: delete a member
+    deleteMember: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => deleteBandMember(input.id)),
+
+    // Admin: save the band alert
+    saveAlert: adminProcedure
+      .input(z.object({
+        id: z.number().optional(),
+        message: z.string().min(1),
+        alertType: z.string().optional(),
+        isActive: z.boolean(),
+      }))
+      .mutation(({ input }) => saveBandAlert(input)),
   }),
 
   // ── File Upload (base64 → S3 CDN) ───────────────────────────────────────────

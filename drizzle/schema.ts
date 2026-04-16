@@ -130,3 +130,30 @@ export const orders = pgTable("orders", {
 });
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
+
+// ── Band Members ──────────────────────────────────────────────────────────────
+export const bandMembers = pgTable("band_members", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  role: varchar("role", { length: 128 }).notNull(),          // e.g. "Guitars / Vocals"
+  photoUrl: text("photoUrl"),                                 // CDN URL
+  bio: text("bio"),                                           // Short bio / fun fact
+  isActive: boolean("isActive").default(true).notNull(),      // false = former member
+  sortOrder: integer("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type BandMember = typeof bandMembers.$inferSelect;
+export type InsertBandMember = typeof bandMembers.$inferInsert;
+
+// ── Band Alerts ("Looking for X" banners) ─────────────────────────────────────
+export const bandAlerts = pgTable("band_alerts", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),                         // Full alert text
+  alertType: varchar("alertType", { length: 64 }).default("recruiting"), // 'recruiting' | 'vacancy' | 'custom'
+  isActive: boolean("isActive").default(true).notNull(),      // Toggle visibility on homepage
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type BandAlert = typeof bandAlerts.$inferSelect;
+export type InsertBandAlert = typeof bandAlerts.$inferInsert;

@@ -11,7 +11,7 @@ import {
   Image, ShoppingBag, MapPin, CreditCard, Settings,
   LogOut, Plus, Trash2, Edit2, Save, X, Download,
   Upload, ChevronLeft, ChevronRight, Eye, EyeOff,
-  Check, AlertTriangle, RefreshCw, ClipboardList, Package, Phone, MapPinned, ChevronDown, ChevronUp
+  Check, AlertTriangle, RefreshCw, ClipboardList, Package, Phone, MapPinned, ChevronDown, ChevronUp, Users
 } from "lucide-react";
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ const TEXT = "oklch(0.87 0.02 80)";
 const TEXT_DIM = "oklch(0.55 0.015 285)";
 const LOGO = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_logo_transparent_83965f35.png";
 
-type Section = "images" | "merch" | "tour" | "upi" | "credentials" | "orders";
+type Section = "images" | "merch" | "tour" | "upi" | "credentials" | "orders" | "band";
 
 // ── Shared Input ──────────────────────────────────────────────────────────────
 function Input({ label, value, onChange, type = "text", placeholder = "", required = false }: {
@@ -76,6 +76,8 @@ function ImageUploader({ currentUrl, onUploaded, folder = "site-images" }: {
 }) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(currentUrl);
+  // Sync preview when parent navigates to a different image slot
+  useEffect(() => { setPreview(currentUrl); }, [currentUrl]);
   const uploadMutation = trpc.upload.uploadFile.useMutation({
     onError: err => { toast.error("Upload failed: " + err.message); setUploading(false); }
   });
@@ -1021,6 +1023,215 @@ function OrdersSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BAND EDITOR
+// ═══════════════════════════════════════════════════════════════════════════════
+function BandEditor() {
+  const utils = trpc.useUtils();
+  const { data: members = [], isLoading: membersLoading } = trpc.band.getMembers.useQuery();
+  const { data: alert, isLoading: alertLoading } = trpc.band.getAlert.useQuery();
+
+  // Member editing state
+  const [editingMember, setEditingMember] = useState<{
+    id?: number; name: string; role: string; photoUrl: string; bio: string; isActive: boolean; sortOrder: number;
+  } | null>(null);
+
+  const upsertMember = trpc.band.upsertMember.useMutation({
+    onSuccess: () => { utils.band.getMembers.invalidate(); setEditingMember(null); toast.success("Member saved"); },
+    onError: (e) => toast.error("Save failed: " + e.message),
+  });
+  const deleteMember = trpc.band.deleteMember.useMutation({
+    onSuccess: () => { utils.band.getMembers.invalidate(); toast.success("Member removed"); },
+    onError: (e) => toast.error("Delete failed: " + e.message),
+  });
+
+  // Alert editing state
+  const [alertForm, setAlertForm] = useState({ message: "", alertType: "recruiting", isActive: true });
+  const [alertInitialized, setAlertInitialized] = useState(false);
+  useEffect(() => {
+    if (alert && !alertInitialized) {
+      setAlertForm({ message: alert.message, alertType: alert.alertType ?? "recruiting", isActive: alert.isActive });
+      setAlertInitialized(true);
+    }
+  }, [alert, alertInitialized]);
+
+  const saveAlert = trpc.band.saveAlert.useMutation({
+    onSuccess: () => { utils.band.getAlert.invalidate(); toast.success("Alert updated"); },
+    onError: (e) => toast.error("Save failed: " + e.message),
+  });
+
+  function startAdd() {
+    setEditingMember({ name: "", role: "", photoUrl: "", bio: "", isActive: true, sortOrder: members.length });
+  }
+  function startEdit(m: typeof members[0]) {
+    setEditingMember({ id: m.id, name: m.name, role: m.role, photoUrl: m.photoUrl ?? "", bio: m.bio ?? "", isActive: m.isActive, sortOrder: m.sortOrder });
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="font-display text-2xl tracking-widest uppercase" style={{ color: TEXT }}>Band Members</h2>
+          <p className="text-xs font-mono mt-1" style={{ color: TEXT_DIM }}>Manage members and the recruitment alert on the homepage.</p>
+        </div>
+        <Btn onClick={startAdd}><Plus size={12} /> Add Member</Btn>
+      </div>
+
+      {/* Member list */}
+      {membersLoading ? (
+        <div className="flex justify-center py-8"><RefreshCw size={20} className="animate-spin" style={{ color: CRIMSON }} /></div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          {members.map(m => (
+            <div key={m.id} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}>
+              <div className="aspect-square overflow-hidden" style={{ backgroundColor: SURFACE2 }}>
+                {m.photoUrl ? (
+                  <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-4xl font-display" style={{ color: TEXT_DIM }}>{m.name.charAt(0)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="p-3">
+                <p className="font-display text-sm tracking-wider" style={{ color: TEXT }}>{m.name}</p>
+                <p className="text-[10px] font-mono tracking-widest uppercase mt-0.5" style={{ color: CRIMSON }}>{m.role}</p>
+                {m.bio && <p className="text-xs font-mono mt-1 line-clamp-2" style={{ color: TEXT_DIM }}>{m.bio}</p>}
+                <div className="flex items-center gap-2 mt-3">
+                  <span
+                    className="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5"
+                    style={{ backgroundColor: m.isActive ? "oklch(0.35 0.15 145 / 0.3)" : "oklch(0.35 0.1 25 / 0.3)", color: m.isActive ? "oklch(0.7 0.15 145)" : TEXT_DIM, border: `1px solid ${m.isActive ? "oklch(0.5 0.15 145)" : BORDER}` }}
+                  >{m.isActive ? "Active" : "Inactive"}</span>
+                  <div className="flex gap-1 ml-auto">
+                    <Btn onClick={() => startEdit(m)} variant="ghost" small><Edit2 size={10} /></Btn>
+                    <Btn onClick={() => { if (confirm(`Remove ${m.name}?`)) deleteMember.mutate({ id: m.id }); }} variant="danger" small><Trash2 size={10} /></Btn>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {members.length === 0 && (
+            <div className="col-span-3 py-12 text-center">
+              <p className="font-mono text-xs" style={{ color: TEXT_DIM }}>No members yet. Click "Add Member" to get started.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add/Edit member form */}
+      {editingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "oklch(0.06 0.005 285 / 0.9)" }}>
+          <div className="w-full max-w-lg overflow-y-auto max-h-[90vh]" style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, padding: "1.5rem" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display text-lg tracking-wider" style={{ color: TEXT }}>{editingMember.id ? "Edit Member" : "Add Member"}</h3>
+              <Btn onClick={() => setEditingMember(null)} variant="ghost" small><X size={12} /></Btn>
+            </div>
+            <div className="space-y-4">
+              <Input label="Name *" value={editingMember.name} onChange={v => setEditingMember({ ...editingMember, name: v })} placeholder="Full name" required />
+              <Input label="Role / Instrument *" value={editingMember.role} onChange={v => setEditingMember({ ...editingMember, role: v })} placeholder="Guitars, Bass, Drums, Vocals..." required />
+              <Input label="Bio (optional)" value={editingMember.bio} onChange={v => setEditingMember({ ...editingMember, bio: v })} placeholder="Short description..." />
+              <Input label="Sort Order" value={String(editingMember.sortOrder)} onChange={v => setEditingMember({ ...editingMember, sortOrder: parseInt(v) || 0 })} type="number" />
+              <div>
+                <p className="text-[10px] font-mono tracking-[0.2em] uppercase mb-2" style={{ color: TEXT_DIM }}>Photo</p>
+                <ImageUploader
+                  currentUrl={editingMember.photoUrl}
+                  onUploaded={url => setEditingMember({ ...editingMember, photoUrl: url })}
+                  folder="band-members"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editingMember.isActive}
+                    onChange={e => setEditingMember({ ...editingMember, isActive: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-xs font-mono" style={{ color: TEXT }}>Active member (shows on homepage)</span>
+                </label>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Btn
+                  onClick={() => upsertMember.mutate({
+                    id: editingMember.id,
+                    name: editingMember.name,
+                    role: editingMember.role,
+                    photoUrl: editingMember.photoUrl || null,
+                    bio: editingMember.bio || null,
+                    isActive: editingMember.isActive,
+                    sortOrder: editingMember.sortOrder,
+                  })}
+                  disabled={upsertMember.isPending || !editingMember.name || !editingMember.role}
+                >
+                  <Save size={12} /> {upsertMember.isPending ? "Saving..." : "Save Member"}
+                </Btn>
+                <Btn onClick={() => setEditingMember(null)} variant="ghost"><X size={12} /> Cancel</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Band Alert section */}
+      <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, padding: "1.5rem" }}>
+        <h3 className="font-display text-lg tracking-wider mb-1" style={{ color: TEXT }}>Recruitment Alert</h3>
+        <p className="text-xs font-mono mb-4" style={{ color: TEXT_DIM }}>This banner appears on the homepage About section. Use it to announce open positions or remove it when the lineup is complete.</p>
+
+        {alertLoading ? (
+          <div className="flex justify-center py-4"><RefreshCw size={16} className="animate-spin" style={{ color: CRIMSON }} /></div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-mono tracking-[0.2em] uppercase mb-1" style={{ color: TEXT_DIM }}>Alert Message</label>
+              <textarea
+                value={alertForm.message}
+                onChange={e => setAlertForm({ ...alertForm, message: e.target.value })}
+                rows={3}
+                placeholder="e.g. Ksetravid is looking for a lead vocalist. DM us on Instagram."
+                className="w-full px-3 py-2 text-sm font-mono outline-none transition-colors resize-none"
+                style={{ backgroundColor: SURFACE2, border: `1px solid ${BORDER}`, color: TEXT }}
+                onFocus={e => { e.currentTarget.style.borderColor = CRIMSON_DIM; }}
+                onBlur={e => { e.currentTarget.style.borderColor = BORDER; }}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-mono tracking-[0.2em] uppercase mb-1" style={{ color: TEXT_DIM }}>Alert Type</label>
+              <select
+                value={alertForm.alertType}
+                onChange={e => setAlertForm({ ...alertForm, alertType: e.target.value })}
+                className="px-3 py-2 text-sm font-mono outline-none"
+                style={{ backgroundColor: SURFACE2, border: `1px solid ${BORDER}`, color: TEXT }}
+              >
+                <option value="recruiting">Recruiting (looking for member)</option>
+                <option value="hiatus">Hiatus</option>
+                <option value="announcement">General Announcement</option>
+                <option value="departure">Member Departure</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={alertForm.isActive}
+                  onChange={e => setAlertForm({ ...alertForm, isActive: e.target.checked })}
+                  className="w-4 h-4"
+                />
+                <span className="text-xs font-mono" style={{ color: TEXT }}>Show alert on homepage</span>
+              </label>
+            </div>
+            <Btn
+              onClick={() => saveAlert.mutate({ id: alert?.id, message: alertForm.message, alertType: alertForm.alertType, isActive: alertForm.isActive })}
+              disabled={saveAlert.isPending || !alertForm.message}
+            >
+              <Save size={12} /> {saveAlert.isPending ? "Saving..." : "Save Alert"}
+            </Btn>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AdminDashboard() {
@@ -1051,6 +1262,7 @@ export default function AdminDashboard() {
 
   const navItems: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "orders", label: "Orders", icon: <ClipboardList size={16} /> },
+    { id: "band", label: "Band Members", icon: <Users size={16} /> },
     { id: "images", label: "Images", icon: <Image size={16} /> },
     { id: "merch", label: "Merch", icon: <ShoppingBag size={16} /> },
     { id: "tour", label: "Tour Dates", icon: <MapPin size={16} /> },
@@ -1149,6 +1361,7 @@ export default function AdminDashboard() {
       <main className="flex-1 overflow-auto pt-14 lg:pt-0">
         <div className="p-4 lg:p-8 max-w-5xl">
           {section === "orders" && <OrdersSection />}
+          {section === "band" && <BandEditor />}
           {section === "images" && <ImageManager />}
           {section === "merch" && <MerchEditor />}
           {section === "tour" && <TourEditor />}

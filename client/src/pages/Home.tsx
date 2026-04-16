@@ -2,7 +2,7 @@
    KSETRAVID — MAIN HOME PAGE
    Assembles all sections in order with smooth scroll
    Design: Cosmic Tech-Death Noir
-   Sections: Hero → About → Music → Videos → Gallery → Tour → Themes → Merch → Press → Contact
+   Sections: Hero → About → Music → Videos → Gallery → Tour → Themes → Merch → Press → FAQ → Contact
    ============================================================= */
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
@@ -14,6 +14,7 @@ import TourSection from "@/components/TourSection";
 import LyricsThemesSection from "@/components/LyricsThemesSection";
 import MerchSection from "@/components/MerchSection";
 import PressSection from "@/components/PressSection";
+import FaqSection from "@/components/FaqSection";
 import ContactSection from "@/components/ContactSection";
 
 export default function Home() {
@@ -32,6 +33,7 @@ export default function Home() {
       <LyricsThemesSection />
       <MerchSection />
       <PressSection />
+      <FaqSection />
       <ContactSection />
     </div>
   );

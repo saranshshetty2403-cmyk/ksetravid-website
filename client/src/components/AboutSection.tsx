@@ -5,6 +5,22 @@
 
 import { trpc } from "@/lib/trpc";
 
+// Deterministic avatar color per first letter — same palette as admin
+const MEMBER_LETTER_COLORS: Record<string, string> = {
+  A: "oklch(0.52 0.24 25)",  B: "oklch(0.50 0.22 45)",  C: "oklch(0.48 0.20 65)",
+  D: "oklch(0.46 0.18 85)",  E: "oklch(0.44 0.20 145)", F: "oklch(0.46 0.22 165)",
+  G: "oklch(0.48 0.20 185)", H: "oklch(0.50 0.18 205)", I: "oklch(0.52 0.22 225)",
+  J: "oklch(0.50 0.24 245)", K: "oklch(0.48 0.22 265)", L: "oklch(0.46 0.20 285)",
+  M: "oklch(0.48 0.22 305)", N: "oklch(0.50 0.24 325)", O: "oklch(0.52 0.22 345)",
+  P: "oklch(0.50 0.20 15)",  Q: "oklch(0.48 0.18 35)",  R: "oklch(0.52 0.24 55)",
+  S: "oklch(0.50 0.22 75)",  T: "oklch(0.48 0.20 95)",  U: "oklch(0.46 0.18 115)",
+  V: "oklch(0.48 0.20 135)", W: "oklch(0.50 0.22 155)", X: "oklch(0.52 0.24 175)",
+  Y: "oklch(0.50 0.22 195)", Z: "oklch(0.48 0.20 215)",
+};
+function getMemberLetterColor(name: string): string {
+  return MEMBER_LETTER_COLORS[name.charAt(0).toUpperCase()] ?? "oklch(0.52 0.24 25)";
+}
+
 const FALLBACK_ABOUT_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/ksetravid_about_bg-mps2bmXs33M4MQ8C7eQV9t.webp";
 const FALLBACK_BAND_PHOTO_OUTDOOR = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_outdoor_2cab208c.jpg";
 const FALLBACK_BAND_PHOTO_BW = "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/band_photo_bw_d0425d7f.jpg";
@@ -48,7 +64,7 @@ export default function AboutSection() {
             ◆ The Band
           </p>
           <h2 className="font-display text-4xl md:text-5xl lg:text-6xl mb-4" style={{ color: "oklch(0.93 0.015 80)" }}>
-            ABOUT
+            ABOUT KSETRAVID
           </h2>
           <div className="crimson-rule" />
         </div>
@@ -90,7 +106,7 @@ export default function AboutSection() {
           <div className="relative">
             <img
               src={BAND_PHOTO_OUTDOOR}
-              alt="Ksetravid band"
+              alt="Ksetravid — Progressive Death Metal band from Bangalore, India"
               className="w-full object-cover"
               style={{ filter: "contrast(1.05) brightness(0.85)", maxHeight: "420px", objectPosition: "center top" }}
             />
@@ -101,8 +117,8 @@ export default function AboutSection() {
             >
               <img
                 src={BAND_PHOTO_BW}
-                alt="Ksetravid"
-                className="w-full h-full object-cover"
+              alt="Ksetravid band photo"
+              className="w-full h-full object-cover"
                 style={{ filter: "grayscale(100%) contrast(1.2)" }}
               />
             </div>
@@ -118,7 +134,7 @@ export default function AboutSection() {
             ◆ Current Lineup
           </p>
           <h3 className="font-display text-3xl md:text-4xl mb-10" style={{ color: "oklch(0.93 0.015 80)" }}>
-            THE MEMBERS
+            BAND MEMBERS
           </h3>
 
           {activeMembers.length > 0 ? (
@@ -140,9 +156,21 @@ export default function AboutSection() {
                       />
                     </div>
                   ) : (
-                    <div className="w-full h-24 flex items-center justify-center" style={{ backgroundColor: "oklch(0.12 0.008 285)" }}>
-                      <span className="font-display text-4xl opacity-20" style={{ color: "oklch(0.52 0.24 25)" }}>
-                        {member.name.charAt(0)}
+                    <div className="relative w-full h-48 flex items-center justify-center overflow-hidden" style={{ backgroundColor: "oklch(0.10 0.006 285)" }}>
+                      {/* Radial glow background */}
+                      <div
+                        className="absolute inset-0"
+                        style={{ background: `radial-gradient(circle at 50% 50%, ${getMemberLetterColor(member.name)}, transparent 65%)`, opacity: 0.12 }}
+                      />
+                      <span
+                        className="relative font-display text-8xl"
+                        style={{
+                          color: getMemberLetterColor(member.name),
+                          textShadow: `0 0 60px ${getMemberLetterColor(member.name)}`,
+                          opacity: 0.75,
+                        }}
+                      >
+                        {member.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}

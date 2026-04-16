@@ -13,7 +13,7 @@ import {
   createOrder, getOrders, updateOrderStatus, generateTxnRef,
   updateOrderRazorpay, updateOrderUTR, setOrderRazorpayOrderId, getOrderById,
   getBandMembers, upsertBandMember, deleteBandMember,
-  getBandAlert, saveBandAlert,
+  getBandAlert, saveBandAlert, toggleBandAlert,
 } from "./db";
 import { ADMIN_COOKIE, signAdminJWT, verifyAdminJWT } from "./adminAuth";
 import { storagePut } from "./storage";
@@ -336,6 +336,11 @@ export const appRouter = router({
         isActive: z.boolean(),
       }))
       .mutation(({ input }) => saveBandAlert(input)),
+
+    // Admin: instantly toggle alert on/off without touching message/type
+    toggleAlert: adminProcedure
+      .input(z.object({ id: z.number(), isActive: z.boolean() }))
+      .mutation(({ input }) => toggleBandAlert(input.id, input.isActive)),
   }),
 
   // ── File Upload (base64 → S3 CDN) ───────────────────────────────────────────

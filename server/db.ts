@@ -391,3 +391,13 @@ export async function saveBandAlert(input: {
     return row;
   }
 }
+
+/** Instantly toggle alert on/off without changing message or type */
+export async function toggleBandAlert(id: number, isActive: boolean) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(bandAlerts)
+    .set({ isActive, updatedAt: new Date() })
+    .where(eq(bandAlerts.id, id));
+  return { id, isActive };
+}

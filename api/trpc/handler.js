@@ -283,6 +283,32 @@ var orders = pgTable("orders", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull()
 });
+var bandMembers = pgTable("band_members", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  role: varchar("role", { length: 128 }).notNull(),
+  // e.g. "Guitars / Vocals"
+  photoUrl: text("photoUrl"),
+  // CDN URL
+  bio: text("bio"),
+  // Short bio / fun fact
+  isActive: boolean("isActive").default(true).notNull(),
+  // false = former member
+  sortOrder: integer("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull()
+});
+var bandAlerts = pgTable("band_alerts", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  // Full alert text
+  alertType: varchar("alertType", { length: 64 }).default("recruiting"),
+  // 'recruiting' | 'vacancy' | 'custom'
+  isActive: boolean("isActive").default(true).notNull(),
+  // Toggle visibility on homepage
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull()
+});
 
 // server/db.ts
 var _db = null;
@@ -487,6 +513,52 @@ async function setOrderRazorpayOrderId(id, razorpayOrderId) {
   const db = getDb();
   if (!db) throw new Error("DB not available");
   await db.update(orders).set({ razorpayOrderId, paymentMethod: "razorpay", updatedAt: /* @__PURE__ */ new Date() }).where(eq(orders.id, id));
+}
+async function getBandMembers() {
+  const db = getDb();
+  if (!db) return [];
+  return db.select().from(bandMembers).orderBy(bandMembers.sortOrder, bandMembers.id);
+}
+async function upsertBandMember(input) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  const { id, ...data } = input;
+  if (id) {
+    await db.update(bandMembers).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(bandMembers.id, id));
+    return { id };
+  } else {
+    const [row] = await db.insert(bandMembers).values({ ...data, isActive: data.isActive ?? true, sortOrder: data.sortOrder ?? 0 }).returning({ id: bandMembers.id });
+    return row;
+  }
+}
+async function deleteBandMember(id) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.delete(bandMembers).where(eq(bandMembers.id, id));
+}
+async function getBandAlert() {
+  const db = getDb();
+  if (!db) return null;
+  const rows = await db.select().from(bandAlerts).orderBy(bandAlerts.id).limit(1);
+  return rows[0] ?? null;
+}
+async function saveBandAlert(input) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  const { id, ...data } = input;
+  if (id) {
+    await db.update(bandAlerts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(bandAlerts.id, id));
+    return { id };
+  } else {
+    const [row] = await db.insert(bandAlerts).values({ ...data, alertType: data.alertType ?? "recruiting" }).returning({ id: bandAlerts.id });
+    return row;
+  }
+}
+async function toggleBandAlert(id, isActive) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(bandAlerts).set({ isActive, updatedAt: /* @__PURE__ */ new Date() }).where(eq(bandAlerts.id, id));
+  return { id, isActive };
 }
 
 // server/adminAuth.ts
@@ -1092,6 +1164,33 @@ var appRouter = router({
       paymentStatus: z2.enum(["pending", "paid", "confirmed", "shipped", "delivered", "cancelled"]),
       adminNotes: z2.string().optional()
     })).mutation(({ input }) => updateOrderStatus(input.id, input.paymentStatus, input.adminNotes))
+  }),
+  // ── Band Members (public read, admin write) ────────────────────────────────
+  band: router({
+    // Public: homepage reads members and alert
+    getMembers: publicProcedure.query(() => getBandMembers()),
+    getAlert: publicProcedure.query(() => getBandAlert()),
+    // Admin: upsert a member (add or edit)
+    upsertMember: adminProcedure2.input(z2.object({
+      id: z2.number().optional(),
+      name: z2.string().min(1),
+      role: z2.string().min(1),
+      photoUrl: z2.string().nullable().optional(),
+      bio: z2.string().nullable().optional(),
+      isActive: z2.boolean().optional(),
+      sortOrder: z2.number().optional()
+    })).mutation(({ input }) => upsertBandMember(input)),
+    // Admin: delete a member
+    deleteMember: adminProcedure2.input(z2.object({ id: z2.number() })).mutation(({ input }) => deleteBandMember(input.id)),
+    // Admin: save the band alert
+    saveAlert: adminProcedure2.input(z2.object({
+      id: z2.number().optional(),
+      message: z2.string().min(1),
+      alertType: z2.string().optional(),
+      isActive: z2.boolean()
+    })).mutation(({ input }) => saveBandAlert(input)),
+    // Admin: instantly toggle alert on/off without touching message/type
+    toggleAlert: adminProcedure2.input(z2.object({ id: z2.number(), isActive: z2.boolean() })).mutation(({ input }) => toggleBandAlert(input.id, input.isActive))
   }),
   // ── File Upload (base64 → S3 CDN) ───────────────────────────────────────────
   upload: router({

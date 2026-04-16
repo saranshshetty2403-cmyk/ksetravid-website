@@ -1022,6 +1022,123 @@ function OrdersSection() {
   );
 }
 
+// ── Deterministic avatar color per first letter ─────────────────────────────
+const LETTER_COLORS: Record<string, string> = {
+  A: "oklch(0.52 0.24 25)",  B: "oklch(0.50 0.22 45)",  C: "oklch(0.48 0.20 65)",
+  D: "oklch(0.46 0.18 85)",  E: "oklch(0.44 0.20 145)", F: "oklch(0.46 0.22 165)",
+  G: "oklch(0.48 0.20 185)", H: "oklch(0.50 0.18 205)", I: "oklch(0.52 0.22 225)",
+  J: "oklch(0.50 0.24 245)", K: "oklch(0.48 0.22 265)", L: "oklch(0.46 0.20 285)",
+  M: "oklch(0.48 0.22 305)", N: "oklch(0.50 0.24 325)", O: "oklch(0.52 0.22 345)",
+  P: "oklch(0.50 0.20 15)",  Q: "oklch(0.48 0.18 35)",  R: "oklch(0.52 0.24 55)",
+  S: "oklch(0.50 0.22 75)",  T: "oklch(0.48 0.20 95)",  U: "oklch(0.46 0.18 115)",
+  V: "oklch(0.48 0.20 135)", W: "oklch(0.50 0.22 155)", X: "oklch(0.52 0.24 175)",
+  Y: "oklch(0.50 0.22 195)", Z: "oklch(0.48 0.20 215)",
+};
+function getLetterColor(name: string): string {
+  const letter = name.charAt(0).toUpperCase();
+  return LETTER_COLORS[letter] ?? CRIMSON;
+}
+
+// ── Member Card (admin) ───────────────────────────────────────────────────────
+function MemberCard({ member, onEdit, onDelete, onPhotoUploaded }: {
+  member: { id: number; name: string; role: string; photoUrl: string | null; bio: string | null; isActive: boolean; sortOrder: number };
+  onEdit: () => void;
+  onDelete: () => void;
+  onPhotoUploaded: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const uploadMutation = trpc.upload.uploadFile.useMutation({
+    onError: (e) => { toast.error("Upload failed: " + e.message); setUploading(false); }
+  });
+
+  function pickPhoto() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setUploading(true);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        try {
+          const res = await uploadMutation.mutateAsync({ base64, filename: file.name, contentType: file.type || "image/jpeg", folder: "band-members" });
+          onPhotoUploaded(res.url);
+          toast.success("Photo uploaded");
+        } finally { setUploading(false); }
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  const letterColor = getLetterColor(member.name);
+
+  return (
+    <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}>
+      {/* Photo area with upload overlay */}
+      <div className="relative aspect-square overflow-hidden group" style={{ backgroundColor: SURFACE2 }}>
+        {member.photoUrl ? (
+          <img src={member.photoUrl} alt={member.name} className="w-full h-full object-cover object-top" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            <span
+              className="font-display text-6xl"
+              style={{
+                color: letterColor,
+                textShadow: `0 0 40px ${letterColor}`,
+                opacity: 0.85,
+              }}
+            >
+              {member.name.charAt(0).toUpperCase()}
+            </span>
+            <div
+              className="absolute inset-0 opacity-10"
+              style={{
+                background: `radial-gradient(circle at 50% 40%, ${letterColor}, transparent 70%)`,
+              }}
+            />
+          </div>
+        )}
+        {/* Upload overlay on hover */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          style={{ backgroundColor: "oklch(0.06 0.005 285 / 0.75)" }}
+          onClick={pickPhoto}
+        >
+          {uploading ? (
+            <RefreshCw size={20} className="animate-spin" style={{ color: CRIMSON }} />
+          ) : (
+            <>
+              <Upload size={18} style={{ color: TEXT }} />
+              <span className="text-[10px] font-mono tracking-widest uppercase" style={{ color: TEXT }}>
+                {member.photoUrl ? "Replace Photo" : "Upload Photo"}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      {/* Info */}
+      <div className="p-3">
+        <p className="font-display text-sm tracking-wider" style={{ color: TEXT }}>{member.name}</p>
+        <p className="text-[10px] font-mono tracking-widest uppercase mt-0.5" style={{ color: CRIMSON }}>{member.role}</p>
+        {member.bio && <p className="text-xs font-mono mt-1 line-clamp-2" style={{ color: TEXT_DIM }}>{member.bio}</p>}
+        <div className="flex items-center gap-2 mt-3">
+          <span
+            className="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5"
+            style={{ backgroundColor: member.isActive ? "oklch(0.35 0.15 145 / 0.3)" : "oklch(0.35 0.1 25 / 0.3)", color: member.isActive ? "oklch(0.7 0.15 145)" : TEXT_DIM, border: `1px solid ${member.isActive ? "oklch(0.5 0.15 145)" : BORDER}` }}
+          >{member.isActive ? "Active" : "Inactive"}</span>
+          <div className="flex gap-1 ml-auto">
+            <Btn onClick={onEdit} variant="ghost" small><Edit2 size={10} /></Btn>
+            <Btn onClick={onDelete} variant="danger" small><Trash2 size={10} /></Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BAND EDITOR
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1058,6 +1175,14 @@ function BandEditor() {
     onSuccess: () => { utils.band.getAlert.invalidate(); toast.success("Alert updated"); },
     onError: (e) => toast.error("Save failed: " + e.message),
   });
+  const toggleAlert = trpc.band.toggleAlert.useMutation({
+    onSuccess: (res) => {
+      utils.band.getAlert.invalidate();
+      setAlertForm(prev => ({ ...prev, isActive: res.isActive }));
+      toast.success(res.isActive ? "Alert is now visible on homepage" : "Alert hidden from homepage");
+    },
+    onError: (e) => toast.error("Toggle failed: " + e.message),
+  });
 
   function startAdd() {
     setEditingMember({ name: "", role: "", photoUrl: "", bio: "", isActive: true, sortOrder: members.length });
@@ -1082,32 +1207,18 @@ function BandEditor() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {members.map(m => (
-            <div key={m.id} style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}` }}>
-              <div className="aspect-square overflow-hidden" style={{ backgroundColor: SURFACE2 }}>
-                {m.photoUrl ? (
-                  <img src={m.photoUrl} alt={m.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <span className="text-4xl font-display" style={{ color: TEXT_DIM }}>{m.name.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
-              <div className="p-3">
-                <p className="font-display text-sm tracking-wider" style={{ color: TEXT }}>{m.name}</p>
-                <p className="text-[10px] font-mono tracking-widest uppercase mt-0.5" style={{ color: CRIMSON }}>{m.role}</p>
-                {m.bio && <p className="text-xs font-mono mt-1 line-clamp-2" style={{ color: TEXT_DIM }}>{m.bio}</p>}
-                <div className="flex items-center gap-2 mt-3">
-                  <span
-                    className="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5"
-                    style={{ backgroundColor: m.isActive ? "oklch(0.35 0.15 145 / 0.3)" : "oklch(0.35 0.1 25 / 0.3)", color: m.isActive ? "oklch(0.7 0.15 145)" : TEXT_DIM, border: `1px solid ${m.isActive ? "oklch(0.5 0.15 145)" : BORDER}` }}
-                  >{m.isActive ? "Active" : "Inactive"}</span>
-                  <div className="flex gap-1 ml-auto">
-                    <Btn onClick={() => startEdit(m)} variant="ghost" small><Edit2 size={10} /></Btn>
-                    <Btn onClick={() => { if (confirm(`Remove ${m.name}?`)) deleteMember.mutate({ id: m.id }); }} variant="danger" small><Trash2 size={10} /></Btn>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <MemberCard
+              key={m.id}
+              member={m}
+              onEdit={() => startEdit(m)}
+              onDelete={() => { if (confirm(`Remove ${m.name}?`)) deleteMember.mutate({ id: m.id }); }}
+              onPhotoUploaded={(url) => {
+                upsertMember.mutate({
+                  id: m.id, name: m.name, role: m.role, photoUrl: url,
+                  bio: m.bio ?? null, isActive: m.isActive, sortOrder: m.sortOrder,
+                });
+              }}
+            />
           ))}
           {members.length === 0 && (
             <div className="col-span-3 py-12 text-center">
@@ -1173,8 +1284,58 @@ function BandEditor() {
 
       {/* Band Alert section */}
       <div style={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, padding: "1.5rem" }}>
-        <h3 className="font-display text-lg tracking-wider mb-1" style={{ color: TEXT }}>Recruitment Alert</h3>
-        <p className="text-xs font-mono mb-4" style={{ color: TEXT_DIM }}>This banner appears on the homepage About section. Use it to announce open positions or remove it when the lineup is complete.</p>
+        {/* Header row: title + instant ON/OFF toggle */}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h3 className="font-display text-lg tracking-wider mb-0.5" style={{ color: TEXT }}>Homepage Alert Banner</h3>
+            <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>Appears in the About section. Toggle to show/hide instantly without saving.</p>
+          </div>
+          {/* Instant toggle pill — only shown once alert exists in DB */}
+          {alert?.id ? (
+            <button
+              onClick={() => {
+                const next = !alertForm.isActive;
+                setAlertForm(prev => ({ ...prev, isActive: next }));
+                toggleAlert.mutate({ id: alert.id, isActive: next });
+              }}
+              disabled={toggleAlert.isPending}
+              title={alertForm.isActive ? "Click to hide alert" : "Click to show alert"}
+              className="flex items-center gap-2.5 px-3 py-2 font-mono-tech text-[10px] tracking-widest uppercase transition-all duration-200 flex-shrink-0"
+              style={{
+                backgroundColor: alertForm.isActive ? "oklch(0.32 0.12 145 / 0.3)" : "oklch(0.14 0.01 285)",
+                border: `1px solid ${alertForm.isActive ? "oklch(0.55 0.18 145)" : BORDER}`,
+                color: alertForm.isActive ? "oklch(0.72 0.18 145)" : TEXT_DIM,
+                cursor: toggleAlert.isPending ? "wait" : "pointer",
+              }}
+            >
+              {/* Toggle pill track */}
+              <div
+                className="relative flex-shrink-0"
+                style={{ width: "2.25rem", height: "1.25rem" }}
+              >
+                <div
+                  className="absolute inset-0 rounded-full transition-colors duration-200"
+                  style={{ backgroundColor: alertForm.isActive ? "oklch(0.55 0.18 145)" : SURFACE2, border: `1px solid ${alertForm.isActive ? "oklch(0.65 0.18 145)" : BORDER}` }}
+                />
+                <div
+                  className="absolute top-0.5 rounded-full transition-all duration-200"
+                  style={{
+                    width: "1rem", height: "1rem",
+                    left: alertForm.isActive ? "calc(100% - 1.125rem)" : "0.125rem",
+                    backgroundColor: alertForm.isActive ? "oklch(0.97 0.01 145)" : TEXT_DIM,
+                  }}
+                />
+              </div>
+              {toggleAlert.isPending ? (
+                <RefreshCw size={10} className="animate-spin" />
+              ) : (
+                <span>{alertForm.isActive ? "LIVE" : "OFF"}</span>
+              )}
+            </button>
+          ) : (
+            <span className="text-[10px] font-mono flex-shrink-0" style={{ color: TEXT_DIM }}>Save first to enable toggle</span>
+          )}
+        </div>
 
         {alertLoading ? (
           <div className="flex justify-center py-4"><RefreshCw size={16} className="animate-spin" style={{ color: CRIMSON }} /></div>
@@ -1206,17 +1367,6 @@ function BandEditor() {
                 <option value="announcement">General Announcement</option>
                 <option value="departure">Member Departure</option>
               </select>
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={alertForm.isActive}
-                  onChange={e => setAlertForm({ ...alertForm, isActive: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <span className="text-xs font-mono" style={{ color: TEXT }}>Show alert on homepage</span>
-              </label>
             </div>
             <Btn
               onClick={() => saveAlert.mutate({ id: alert?.id, message: alertForm.message, alertType: alertForm.alertType, isActive: alertForm.isActive })}

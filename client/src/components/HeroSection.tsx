@@ -83,12 +83,15 @@ export default function HeroSection() {
             className={`transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
             style={{ transitionDelay: "0.1s" }}
           >
-            <img
-              src={LOGO_URL}
-              alt="Ksetravid"
-              className="w-64 sm:w-72 object-contain mx-auto"
-              style={{ filter: "brightness(1.05)" }}
-            />
+            {/* aria-hidden: the desktop h1 is the canonical heading */}
+            <div aria-hidden="true">
+              <img
+                src={LOGO_URL}
+                alt=""
+                className="w-64 sm:w-72 object-contain mx-auto"
+                style={{ filter: "brightness(1.05)" }}
+              />
+            </div>
           </div>
 
           {/* Origin tag */}
@@ -234,12 +237,14 @@ export default function HeroSection() {
               className={`mb-5 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
               style={{ transitionDelay: "0.2s" }}
             >
-              <img
-                src={LOGO_URL}
-                alt="Ksetravid"
-                className="h-48 w-auto object-contain"
-                style={{ filter: "brightness(1.05)", maxWidth: "360px" }}
-              />
+              <h1 className="m-0 p-0 leading-none">
+                <img
+                  src={LOGO_URL}
+                  alt="Ksetravid — Progressive Death Metal / Tech-Death Band from Bangalore, India"
+                  className="h-48 w-auto object-contain"
+                  style={{ filter: "brightness(1.05)", maxWidth: "360px" }}
+                />
+              </h1>
             </div>
 
             {/* Genre tags */}

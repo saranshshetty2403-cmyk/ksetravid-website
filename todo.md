@@ -69,17 +69,47 @@
 - [x] Admin panel: show payment method (Razorpay/Manual) and UTR/transaction ID in order details
 
 ## Band Member Management (v5)
-- [ ] Add band_members table to schema (name, role, photo_url, bio, sort_order, is_active)
-- [ ] Add band_alerts table to schema (message, is_active, alert_type e.g. "recruiting"/"vacancy")
-- [ ] Push schema migration to Neon
-- [ ] Seed existing members (Pritam, Arunav, Saurav + others) into band_members table
-- [ ] tRPC procedures: listMembers, upsertMember, deleteMember (admin)
-- [ ] tRPC procedures: getAlert, saveAlert (admin + public read)
-- [ ] Admin dashboard: "Band Members" section — add/edit/delete member cards with photo upload
-- [ ] Admin dashboard: "Band Alert" section — edit alert message, toggle active/inactive
-- [ ] Homepage About section: render members from DB (not hardcoded)
-- [ ] Homepage About section: show/hide alert banner based on DB active flag
+- [x] Add band_members table to schema (name, role, photo_url, bio, sort_order, is_active)
+- [x] Add band_alerts table to schema (message, is_active, alert_type e.g. "recruiting"/"vacancy")
+- [x] Push schema migration to Neon (via direct neon HTTP driver script)
+- [x] Seed existing members (Pritam, Arunav, Nikhil) into band_members table
+- [x] tRPC procedures: getMembers, upsertMember, deleteMember (admin)
+- [x] tRPC procedures: getAlert, saveAlert (admin + public read)
+- [x] Admin dashboard: "Band Members" section — add/edit/delete member cards with photo upload
+- [x] Admin dashboard: "Band Alert" section — edit alert message, toggle active/inactive
+- [x] Homepage About section: render members from DB (not hardcoded)
+- [x] Homepage About section: show/hide alert banner based on DB active flag
 
 ## Image Manager Fix (v5)
-- [ ] Diagnose why some images are not showing in admin Image Manager
-- [ ] Fix broken image previews in admin dashboard Image Manager section
+- [x] Diagnose why some images are not showing in admin Image Manager (empty URL + stale useState)
+- [x] Fix broken image previews in admin dashboard Image Manager section (useEffect to sync preview)
+
+## SEO & AEO Optimization (v6)
+- [ ] Research target keywords for Indian metal searches
+- [ ] Add comprehensive meta tags (title, description, keywords) to index.html
+- [ ] Add Open Graph tags (og:title, og:description, og:image, og:url, og:type)
+- [ ] Add Twitter Card meta tags
+- [ ] Add canonical URL tag
+- [ ] Create sitemap.xml in client/public
+- [ ] Create robots.txt in client/public
+- [ ] Add JSON-LD MusicGroup schema for Ksetravid band
+- [ ] Add JSON-LD MusicAlbum/MusicRecording schema for each single
+- [ ] Add JSON-LD FAQ schema for common questions about the band
+- [ ] Add JSON-LD BreadcrumbList schema
+- [ ] Add JSON-LD Event schema for tour dates
+- [ ] Add JSON-LD WebSite schema with SearchAction
+- [ ] Optimize all image alt text for SEO
+- [ ] Add semantic HTML5 elements (article, section, aside, header, footer)
+- [ ] Add page speed optimizations (preload critical assets, lazy loading)
+- [ ] Add AEO-optimized FAQ content section on homepage
+- [ ] Verify with Google Rich Results Test
+
+## Member Photo Upload (v7)
+- [ ] Add photo upload button to each member card in admin Band Members section
+- [ ] Upload photo to S3 via storagePut, save URL to band_members.photo_url in DB
+- [ ] Improve MemberAvatar: deterministic color per first letter (A-Z), consistent style for all letters
+- [ ] Homepage About section: show photo if available, else show styled initial avatar
+- [ ] Ensure any new member without a photo gets a consistent auto-generated avatar
+
+## Alert Toggle (v8)
+- [x] Add on/off toggle switch to admin Band Members section alert panel — enable/disable alert without editing the message

@@ -960,8 +960,24 @@ function OrdersSection() {
                   {/* Payment */}
                   <div className="space-y-1">
                     <p className="text-[9px] font-mono tracking-widest uppercase" style={{ color: TEXT_DIM }}>Payment</p>
-                    <p className="text-xs font-mono" style={{ color: TEXT }}>{order.upiId}</p>
-                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>Txn Ref: {order.txnRef}</p>
+                    {/* Payment method badge */}
+                    {(order as any).razorpayPaymentId ? (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono tracking-widest uppercase px-2 py-0.5" style={{ backgroundColor: "oklch(0.65 0.18 145 / 0.12)", border: "1px solid oklch(0.65 0.18 145 / 0.35)", color: "oklch(0.65 0.18 145)" }}>✓ Razorpay — Auto Confirmed</span>
+                    ) : (order as any).utrNumber ? (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono tracking-widest uppercase px-2 py-0.5" style={{ backgroundColor: "oklch(0.62 0.18 60 / 0.10)", border: "1px solid oklch(0.62 0.18 60 / 0.35)", color: "oklch(0.62 0.18 60)" }}>⏳ Manual UPI — Verify UTR</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono tracking-widest uppercase px-2 py-0.5" style={{ backgroundColor: "oklch(0.45 0.015 285 / 0.15)", border: "1px solid oklch(0.45 0.015 285 / 0.35)", color: "oklch(0.50 0.015 285)" }}>⚠ Awaiting Payment</span>
+                    )}
+                    <p className="text-xs font-mono" style={{ color: TEXT }}>UPI: {order.upiId}</p>
+                    <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>Ref: {order.txnRef}</p>
+                    {/* UTR number for manual payments */}
+                    {(order as any).utrNumber && (
+                      <p className="text-xs font-mono" style={{ color: "oklch(0.62 0.18 60)" }}>UTR: {(order as any).utrNumber}</p>
+                    )}
+                    {/* Razorpay IDs for auto-confirmed payments */}
+                    {(order as any).razorpayPaymentId && (
+                      <p className="text-xs font-mono" style={{ color: "oklch(0.65 0.18 145)" }}>RZP: {(order as any).razorpayPaymentId}</p>
+                    )}
                     {order.paymentNote && <p className="text-xs font-mono" style={{ color: TEXT_DIM }}>{order.paymentNote}</p>}
                   </div>
                   {/* Date */}

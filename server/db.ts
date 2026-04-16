@@ -278,3 +278,45 @@ export async function updateOrderStatus(id: number, paymentStatus: "pending" | "
     .set({ paymentStatus, adminNotes: adminNotes ?? null, updatedAt: new Date() })
     .where(eq(orders.id, id));
 }
+
+/** Update order with Razorpay payment details after successful payment */
+export async function updateOrderRazorpay(
+  id: number,
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders)
+    .set({
+      razorpayOrderId,
+      razorpayPaymentId,
+      paymentMethod: "razorpay",
+      paymentStatus: "paid",
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, id));
+}
+
+/** Update order with manual UTR number */
+export async function updateOrderUTR(id: number, utrNumber: string) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders)
+    .set({
+      utrNumber,
+      paymentMethod: "manual",
+      paymentStatus: "pending",
+      updatedAt: new Date(),
+    })
+    .where(eq(orders.id, id));
+}
+
+/** Update order with Razorpay order ID before payment */
+export async function setOrderRazorpayOrderId(id: number, razorpayOrderId: string) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders)
+    .set({ razorpayOrderId, paymentMethod: "razorpay", updatedAt: new Date() })
+    .where(eq(orders.id, id));
+}

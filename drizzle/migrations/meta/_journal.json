@@ -15,6 +15,13 @@
       "when": 1776292145198,
       "tag": "0001_broken_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776296656722,
+      "tag": "0002_minor_banshee",
+      "breakpoints": true
     }
   ]
 }

@@ -11,9 +11,11 @@ import {
   seedAdminCredentials, verifyAdminCredentials,
   updateAdminCredentials, getCurrentAdminUsername,
   createOrder, getOrders, updateOrderStatus, generateTxnRef,
+  updateOrderRazorpay, updateOrderUTR, setOrderRazorpayOrderId, getOrderById,
 } from "./db";
 import { ADMIN_COOKIE, signAdminJWT, verifyAdminJWT } from "./adminAuth";
 import { storagePut } from "./storage";
+import { createRazorpayOrder, verifyRazorpaySignature, isRazorpayConfigured } from "./razorpay";
 import { nanoid } from "nanoid";
 import { seedDatabase } from "./seed";
 
@@ -224,6 +226,67 @@ export const appRouter = router({
         const order = await createOrder({ ...input, txnRef });
         return { id: order.id, txnRef: order.txnRef };
       }),
+
+    // Public: initiate Razorpay payment — creates Razorpay order and returns details
+    initiateRazorpay: publicProcedure
+      .input(z.object({ orderId: z.number() }))
+      .mutation(async ({ input }) => {
+        if (!isRazorpayConfigured()) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Razorpay is not configured yet" });
+        }
+        const order = await getOrderById(input.orderId);
+        if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found" });
+        const rzpOrder = await createRazorpayOrder(
+          order.totalAmount * 100, // paise
+          order.txnRef
+        );
+        await setOrderRazorpayOrderId(order.id, rzpOrder.orderId);
+        return {
+          razorpayOrderId: rzpOrder.orderId,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency,
+          keyId: rzpOrder.keyId,
+          buyerName: order.buyerName,
+          buyerPhone: order.buyerPhone,
+          buyerEmail: order.buyerEmail ?? "",
+          txnRef: order.txnRef,
+        };
+      }),
+
+    // Public: verify Razorpay payment after success callback from frontend
+    verifyRazorpay: publicProcedure
+      .input(z.object({
+        orderId: z.number(),
+        razorpayOrderId: z.string(),
+        razorpayPaymentId: z.string(),
+        razorpaySignature: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const valid = verifyRazorpaySignature(
+          input.razorpayOrderId,
+          input.razorpayPaymentId,
+          input.razorpaySignature
+        );
+        if (!valid) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Payment verification failed — signature mismatch" });
+        }
+        await updateOrderRazorpay(input.orderId, input.razorpayOrderId, input.razorpayPaymentId);
+        return { success: true, message: "Payment confirmed" };
+      }),
+
+    // Public: submit manual UTR number as fallback
+    submitUTR: publicProcedure
+      .input(z.object({
+        orderId: z.number(),
+        utrNumber: z.string().min(6, "Please enter a valid UTR / transaction ID"),
+      }))
+      .mutation(async ({ input }) => {
+        await updateOrderUTR(input.orderId, input.utrNumber);
+        return { success: true };
+      }),
+
+    // Public: check if Razorpay is configured
+    isRazorpayEnabled: publicProcedure.query(() => isRazorpayConfigured()),
 
     // Admin: list all orders
     list: adminProcedure.query(() => getOrders()),

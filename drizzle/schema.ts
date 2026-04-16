@@ -118,6 +118,11 @@ export const orders = pgTable("orders", {
   upiId: varchar("upiId", { length: 128 }).notNull(),
   paymentStatus: orderStatusEnum("paymentStatus").default("pending").notNull(),
   paymentNote: text("paymentNote"),
+  // Payment method tracking
+  paymentMethod: varchar("paymentMethod", { length: 32 }).default("manual"), // 'razorpay' | 'manual'
+  razorpayOrderId: varchar("razorpayOrderId", { length: 128 }),    // Razorpay order ID
+  razorpayPaymentId: varchar("razorpayPaymentId", { length: 128 }), // Razorpay payment ID (after success)
+  utrNumber: varchar("utrNumber", { length: 64 }),                  // Manual UTR fallback
   // Admin notes
   adminNotes: text("adminNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

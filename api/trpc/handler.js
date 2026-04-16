@@ -269,6 +269,15 @@ var orders = pgTable("orders", {
   upiId: varchar("upiId", { length: 128 }).notNull(),
   paymentStatus: orderStatusEnum("paymentStatus").default("pending").notNull(),
   paymentNote: text("paymentNote"),
+  // Payment method tracking
+  paymentMethod: varchar("paymentMethod", { length: 32 }).default("manual"),
+  // 'razorpay' | 'manual'
+  razorpayOrderId: varchar("razorpayOrderId", { length: 128 }),
+  // Razorpay order ID
+  razorpayPaymentId: varchar("razorpayPaymentId", { length: 128 }),
+  // Razorpay payment ID (after success)
+  utrNumber: varchar("utrNumber", { length: 64 }),
+  // Manual UTR fallback
   // Admin notes
   adminNotes: text("adminNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -442,10 +451,42 @@ async function getOrders() {
   if (!db) return [];
   return db.select().from(orders).orderBy(desc(orders.createdAt));
 }
+async function getOrderById(id) {
+  const db = getDb();
+  if (!db) return null;
+  const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+  return result[0] ?? null;
+}
 async function updateOrderStatus(id, paymentStatus, adminNotes) {
   const db = getDb();
   if (!db) throw new Error("DB not available");
   await db.update(orders).set({ paymentStatus, adminNotes: adminNotes ?? null, updatedAt: /* @__PURE__ */ new Date() }).where(eq(orders.id, id));
+}
+async function updateOrderRazorpay(id, razorpayOrderId, razorpayPaymentId) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders).set({
+    razorpayOrderId,
+    razorpayPaymentId,
+    paymentMethod: "razorpay",
+    paymentStatus: "paid",
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(orders.id, id));
+}
+async function updateOrderUTR(id, utrNumber) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders).set({
+    utrNumber,
+    paymentMethod: "manual",
+    paymentStatus: "pending",
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(orders.id, id));
+}
+async function setOrderRazorpayOrderId(id, razorpayOrderId) {
+  const db = getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(orders).set({ razorpayOrderId, paymentMethod: "razorpay", updatedAt: /* @__PURE__ */ new Date() }).where(eq(orders.id, id));
 }
 
 // server/adminAuth.ts
@@ -524,6 +565,42 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
   }
   const url = (await response.json()).url;
   return { key, url };
+}
+
+// server/razorpay.ts
+import Razorpay from "razorpay";
+import crypto2 from "crypto";
+function getRazorpay() {
+  const keyId = process.env.KSETRAVID_RAZORPAY_KEY_ID;
+  const keySecret = process.env.KSETRAVID_RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) return null;
+  return new Razorpay({ key_id: keyId, key_secret: keySecret });
+}
+async function createRazorpayOrder(amountInPaise, receipt) {
+  const rzp = getRazorpay();
+  if (!rzp) throw new Error("Razorpay is not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
+  const order = await rzp.orders.create({
+    amount: amountInPaise,
+    currency: "INR",
+    receipt,
+    payment_capture: true
+  });
+  return {
+    orderId: order.id,
+    amount: order.amount,
+    currency: order.currency,
+    keyId: process.env.KSETRAVID_RAZORPAY_KEY_ID
+  };
+}
+function verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature) {
+  const keySecret = process.env.KSETRAVID_RAZORPAY_KEY_SECRET;
+  if (!keySecret) return false;
+  const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+  const expectedSignature = crypto2.createHmac("sha256", keySecret).update(body).digest("hex");
+  return expectedSignature === razorpaySignature;
+}
+function isRazorpayConfigured() {
+  return !!(process.env.KSETRAVID_RAZORPAY_KEY_ID && process.env.KSETRAVID_RAZORPAY_KEY_SECRET);
 }
 
 // server/routers.ts
@@ -955,6 +1032,58 @@ var appRouter = router({
       const order = await createOrder({ ...input, txnRef });
       return { id: order.id, txnRef: order.txnRef };
     }),
+    // Public: initiate Razorpay payment — creates Razorpay order and returns details
+    initiateRazorpay: publicProcedure.input(z2.object({ orderId: z2.number() })).mutation(async ({ input }) => {
+      if (!isRazorpayConfigured()) {
+        throw new TRPCError3({ code: "PRECONDITION_FAILED", message: "Razorpay is not configured yet" });
+      }
+      const order = await getOrderById(input.orderId);
+      if (!order) throw new TRPCError3({ code: "NOT_FOUND", message: "Order not found" });
+      const rzpOrder = await createRazorpayOrder(
+        order.totalAmount * 100,
+        // paise
+        order.txnRef
+      );
+      await setOrderRazorpayOrderId(order.id, rzpOrder.orderId);
+      return {
+        razorpayOrderId: rzpOrder.orderId,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        keyId: rzpOrder.keyId,
+        buyerName: order.buyerName,
+        buyerPhone: order.buyerPhone,
+        buyerEmail: order.buyerEmail ?? "",
+        txnRef: order.txnRef
+      };
+    }),
+    // Public: verify Razorpay payment after success callback from frontend
+    verifyRazorpay: publicProcedure.input(z2.object({
+      orderId: z2.number(),
+      razorpayOrderId: z2.string(),
+      razorpayPaymentId: z2.string(),
+      razorpaySignature: z2.string()
+    })).mutation(async ({ input }) => {
+      const valid = verifyRazorpaySignature(
+        input.razorpayOrderId,
+        input.razorpayPaymentId,
+        input.razorpaySignature
+      );
+      if (!valid) {
+        throw new TRPCError3({ code: "BAD_REQUEST", message: "Payment verification failed \u2014 signature mismatch" });
+      }
+      await updateOrderRazorpay(input.orderId, input.razorpayOrderId, input.razorpayPaymentId);
+      return { success: true, message: "Payment confirmed" };
+    }),
+    // Public: submit manual UTR number as fallback
+    submitUTR: publicProcedure.input(z2.object({
+      orderId: z2.number(),
+      utrNumber: z2.string().min(6, "Please enter a valid UTR / transaction ID")
+    })).mutation(async ({ input }) => {
+      await updateOrderUTR(input.orderId, input.utrNumber);
+      return { success: true };
+    }),
+    // Public: check if Razorpay is configured
+    isRazorpayEnabled: publicProcedure.query(() => isRazorpayConfigured()),
     // Admin: list all orders
     list: adminProcedure2.query(() => getOrders()),
     // Admin: update order status

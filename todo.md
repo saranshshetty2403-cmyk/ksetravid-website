@@ -44,3 +44,26 @@
 - [x] UPI deep link pre-fills: amount, UPI ID, transaction ref in remarks/comments
 - [x] Add Orders section to admin dashboard with full order list and status management
 - [x] Add quantity selector (+/-) to each product card in MerchSection
+
+## Vercel Deployment Fixes
+- [x] Fix @shared path alias resolution (pre-bundle with esbuild)
+- [x] Remove filesystem operations from adminAuth.ts
+- [ ] Fix Vercel SPA routing (routes config not applying, /merch returns 404)
+
+## Payment Confirmation Flow (v3)
+- [x] Add Step 3 "Payment Confirmation" to checkout: customer enters UTR/transaction ID
+- [x] Save order to DB on UTR submission with status "pending"
+- [x] Show order confirmation screen with order ID after UTR submitted
+- [x] Admin panel: show UTR number in order details for verification
+
+## Razorpay Integration (v4)
+- [x] Add Razorpay npm package (razorpay server-side + razorpay checkout.js client-side)
+- [x] Add KSETRAVID_RAZORPAY_KEY_ID and KSETRAVID_RAZORPAY_KEY_SECRET env vars (empty = fallback to manual)
+- [x] tRPC procedure: initiateRazorpay (creates Razorpay order, returns order_id + key)
+- [x] tRPC procedure: verifyRazorpay (verifies signature, saves order to DB as paid)
+- [x] tRPC procedure: submitUTR (manual fallback, saves UTR to DB)
+- [x] Frontend: payment method selection screen (Razorpay if configured, always show manual)
+- [x] Frontend: Razorpay checkout modal with automatic payment confirmation
+- [x] Frontend: manual UPI flow with QR + UTR entry field
+- [x] Frontend: order confirmation screen shows payment method used
+- [x] Admin panel: show payment method (Razorpay/Manual) and UTR/transaction ID in order details

@@ -1,14 +1,15 @@
 /* =============================================================
    KSETRAVID MERCH STORE — Full Order Flow
    Design: Cosmic Tech-Death Noir
-   Flow: Product → Size + Qty → Delivery Info → UPI Payment → Confirmation
+   Flow: Product → Size + Qty → Delivery Info → Payment (Razorpay or Manual UPI+UTR) → Confirmation
    ============================================================= */
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import {
   X, ShoppingBag, ChevronRight, Smartphone, Copy, CheckCheck,
   MessageCircle, ArrowLeft, AlertCircle, Loader2, Plus, Minus,
-  MapPin, User, Phone, Mail, CheckCircle2, Package,
+  MapPin, User, Phone, Mail, CheckCircle2, Package, CreditCard,
+  Shield, Hash,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -28,6 +29,18 @@ function buildUpiUri(upiId: string, upiName: string, amount: number, txnRef: str
     tn: `Ksetravid Order ${txnRef}`,
   });
   return `upi://pay?${params.toString()}`;
+}
+
+// Dynamically load the Razorpay checkout script
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -253,9 +266,9 @@ function DeliveryForm({
                 <label style={labelStyle}>Address Line 2 (optional)</label>
                 <input style={inputStyle}
                   value={form.addressLine2} onChange={e => setForm(f => ({ ...f, addressLine2: e.target.value }))}
-                  placeholder="Landmark, Colony, etc." />
+                  placeholder="Landmark, Colony" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label style={labelStyle}>City *</label>
                   <input style={{ ...inputStyle, borderColor: errors.city ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
@@ -270,30 +283,25 @@ function DeliveryForm({
                     placeholder="State" />
                   {errors.state && <p style={errorStyle}>{errors.state}</p>}
                 </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Pincode *</label>
-                <input style={{ ...inputStyle, borderColor: errors.pincode ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
-                  value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))}
-                  placeholder="6-digit pincode" maxLength={6} />
-                {errors.pincode && <p style={errorStyle}>{errors.pincode}</p>}
+                <div>
+                  <label style={labelStyle}>Pincode *</label>
+                  <input style={{ ...inputStyle, borderColor: errors.pincode ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.12)" }}
+                    value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))}
+                    placeholder="6-digit" type="tel" maxLength={6} />
+                  {errors.pincode && <p style={errorStyle}>{errors.pincode}</p>}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={createOrder.isPending}
-            className="w-full flex items-center justify-center gap-3 py-4 font-mono-tech text-sm tracking-widest uppercase transition-all duration-200"
-            style={{
-              backgroundColor: createOrder.isPending ? "oklch(0.35 0.12 25)" : "oklch(0.52 0.24 25)",
-              color: "oklch(0.97 0.005 80)",
-              border: "1px solid oklch(0.52 0.24 25)",
-              cursor: createOrder.isPending ? "not-allowed" : "pointer",
-            }}
+            className="w-full flex items-center justify-center gap-3 py-4 text-sm tracking-widest uppercase transition-all duration-200"
+            style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)", opacity: createOrder.isPending ? 0.7 : 1 }}
           >
-            {createOrder.isPending ? <><Loader2 size={16} className="animate-spin" /> Saving Order…</> : <>Proceed to Payment <ChevronRight size={16} /></>}
+            {createOrder.isPending ? <Loader2 size={16} className="animate-spin" /> : <ChevronRight size={16} />}
+            {createOrder.isPending ? "Saving..." : "Continue to Payment"}
           </button>
         </form>
       </div>
@@ -301,13 +309,14 @@ function DeliveryForm({
   );
 }
 
-/* ── Step 2: UPI Payment ────────────────────────────────────────── */
-function UpiPaymentModal({
+/* ── Step 2: Payment Modal (Razorpay or Manual UPI) ─────────────── */
+function PaymentModal({
   product,
   size,
   quantity,
   upi,
   txnRef,
+  orderId,
   deliveryInfo,
   onClose,
   onDone,
@@ -317,21 +326,36 @@ function UpiPaymentModal({
   quantity: number;
   upi: UpiData;
   txnRef: string;
+  orderId: number;
   deliveryInfo: DeliveryInfo;
   onClose: () => void;
-  onDone: () => void;
+  onDone: (method: "razorpay" | "manual") => void;
 }) {
-  const [copied, setCopied] = useState(false);
-  const [copiedRef, setCopiedRef] = useState(false);
   const totalAmount = product.price * quantity;
   const upiUri = useMemo(() => buildUpiUri(upi.upiId, upi.accountName, totalAmount, txnRef), [upi, totalAmount, txnRef]);
+
+  // Check if Razorpay is configured on the server
+  const { data: razorpayEnabled } = trpc.orders.isRazorpayEnabled.useQuery(undefined, { retry: 1 });
+
+  // Payment method: "razorpay" | "manual" | null (not chosen yet)
+  const [payMethod, setPayMethod] = useState<"razorpay" | "manual" | null>(null);
+
+  // UTR manual flow state
+  const [utrInput, setUtrInput] = useState("");
+  const [utrError, setUtrError] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  // tRPC mutations
+  const initiateRazorpay = trpc.orders.initiateRazorpay.useMutation();
+  const verifyRazorpay = trpc.orders.verifyRazorpay.useMutation();
+  const submitUTR = trpc.orders.submitUTR.useMutation();
 
   const whatsappMsg = encodeURIComponent(
     `Hi! I just placed an order on Ksetravid.\n\n` +
     `*Order Ref:* ${txnRef}\n` +
     `*Product:* ${product.name}${size ? ` — Size: ${size}` : ""}\n` +
-    `*Qty:* ${quantity} × ${formatINR(product.price)} = *${formatINR(totalAmount)}*\n` +
-    `*UPI ID paid to:* ${upi.upiId}\n\n` +
+    `*Qty:* ${quantity} × ${formatINR(product.price)} = *${formatINR(totalAmount)}*\n\n` +
     `*Delivery to:*\n${deliveryInfo.buyerName}\n${deliveryInfo.addressLine1}${deliveryInfo.addressLine2 ? ", " + deliveryInfo.addressLine2 : ""}\n${deliveryInfo.city}, ${deliveryInfo.state} — ${deliveryInfo.pincode}\nPhone: ${deliveryInfo.buyerPhone}\n\n` +
     `Please confirm my order. 🤘`
   );
@@ -344,6 +368,68 @@ function UpiPaymentModal({
     navigator.clipboard.writeText(txnRef).then(() => { setCopiedRef(true); setTimeout(() => setCopiedRef(false), 2500); });
   }
 
+  async function handleRazorpayPay() {
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) { toast.error("Failed to load Razorpay. Please try manual UPI."); return; }
+
+      const rzpData = await initiateRazorpay.mutateAsync({ orderId });
+
+      const options = {
+        key: rzpData.keyId,
+        amount: rzpData.amount,
+        currency: rzpData.currency,
+        name: "Ksetravid",
+        description: `Order ${rzpData.txnRef}`,
+        order_id: rzpData.razorpayOrderId,
+        prefill: {
+          name: rzpData.buyerName,
+          contact: rzpData.buyerPhone,
+          email: rzpData.buyerEmail || undefined,
+        },
+        theme: { color: "#c0392b" },
+        handler: async (response: any) => {
+          try {
+            await verifyRazorpay.mutateAsync({
+              orderId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            onDone("razorpay");
+          } catch {
+            toast.error("Payment verification failed. Please contact us with your payment screenshot.");
+          }
+        },
+        modal: {
+          ondismiss: () => { /* user closed modal — stay on payment page */ },
+        },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to initiate payment. Please try manual UPI.");
+    }
+  }
+
+  async function handleUTRSubmit() {
+    if (!utrInput.trim() || utrInput.trim().length < 6) {
+      setUtrError("Please enter a valid UTR / transaction ID (min 6 characters)");
+      return;
+    }
+    setUtrError("");
+    try {
+      await submitUTR.mutateAsync({ orderId, utrNumber: utrInput.trim() });
+      onDone("manual");
+    } catch {
+      toast.error("Failed to save UTR. Please try again.");
+    }
+  }
+
+  const modalBg = "oklch(0.08 0.006 285)";
+  const borderColor = "oklch(0.52 0.24 25 / 0.45)";
+
   return (
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center p-4"
@@ -352,18 +438,22 @@ function UpiPaymentModal({
     >
       <div
         className="relative w-full max-w-lg overflow-y-auto"
-        style={{
-          maxHeight: "95vh",
-          backgroundColor: "oklch(0.08 0.006 285)",
-          border: "1px solid oklch(0.52 0.24 25 / 0.45)",
-          boxShadow: "0 0 80px oklch(0.52 0.24 25 / 0.20)",
-        }}
+        style={{ maxHeight: "95vh", backgroundColor: modalBg, border: `1px solid ${borderColor}`, boxShadow: "0 0 80px oklch(0.52 0.24 25 / 0.20)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid oklch(1 0 0 / 0.08)" }}>
+          {payMethod ? (
+            <button onClick={() => setPayMethod(null)} className="flex items-center gap-2 text-xs tracking-widest uppercase transition-colors" style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.50 0.015 285)"; }}>
+              <ArrowLeft size={14} /> Back
+            </button>
+          ) : (
+            <span style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace", fontSize: "11px" }}>Step 2 of 2</span>
+          )}
           <p style={{ color: "oklch(0.52 0.24 25)", fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-            ◆ UPI Payment
+            ◆ Payment
           </p>
           <button onClick={onClose} className="p-1 transition-colors" style={{ color: "oklch(0.50 0.015 285)" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "oklch(0.52 0.24 25)"; }}
@@ -385,99 +475,208 @@ function UpiPaymentModal({
             </div>
           </div>
 
-          {/* Transaction Ref */}
-          <div className="mb-5 p-4" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}>
-            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "6px" }}>
-              Transaction Reference (use in payment note)
-            </p>
-            <div className="flex items-center justify-between gap-3">
-              <span style={{ fontFamily: "monospace", fontSize: "15px", fontWeight: 700, color: "oklch(0.52 0.24 25)", letterSpacing: "0.05em" }}>{txnRef}</span>
-              <button onClick={copyTxnRef} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase transition-all duration-200"
-                style={{
-                  fontFamily: "monospace",
-                  backgroundColor: copiedRef ? "oklch(0.52 0.24 25 / 0.15)" : "transparent",
-                  border: `1px solid ${copiedRef ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`,
-                  color: copiedRef ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)",
-                }}>
-                {copiedRef ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
-              </button>
-            </div>
-          </div>
+          {/* ── Payment Method Selection ── */}
+          {!payMethod && (
+            <div>
+              <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "14px" }}>
+                Choose Payment Method
+              </p>
 
-          {/* QR Code */}
-          <div className="flex flex-col items-center mb-5">
-            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "12px" }}>
-              Scan QR to Pay {formatINR(totalAmount)}
-            </p>
-            <div className="p-4 bg-white inline-block">
-              {upi.qrCodeUrl ? (
-                <img src={upi.qrCodeUrl} alt="UPI QR Code" className="w-40 h-40 object-contain" />
-              ) : (
-                <QRCodeSVG value={upiUri} size={160} level="M" />
+              {/* Razorpay option — only shown if configured */}
+              {razorpayEnabled && (
+                <button
+                  onClick={() => setPayMethod("razorpay")}
+                  className="w-full flex items-center gap-4 p-4 mb-3 text-left transition-all duration-200"
+                  style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.06)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.70)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.30)"; }}
+                >
+                  <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.15)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}>
+                    <CreditCard size={18} style={{ color: "oklch(0.52 0.24 25)" }} />
+                  </div>
+                  <div className="flex-1">
+                    <p style={{ color: "oklch(0.87 0.02 80)", fontSize: "14px", fontWeight: 600, marginBottom: "2px" }}>Pay with Razorpay</p>
+                    <p style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace", fontSize: "11px" }}>UPI, Cards, Net Banking — instant confirmation</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2 py-1" style={{ backgroundColor: "oklch(0.65 0.18 145 / 0.12)", border: "1px solid oklch(0.65 0.18 145 / 0.30)" }}>
+                    <Shield size={10} style={{ color: "oklch(0.65 0.18 145)" }} />
+                    <span style={{ fontFamily: "monospace", fontSize: "9px", letterSpacing: "0.08em", textTransform: "uppercase", color: "oklch(0.65 0.18 145)" }}>Secure</span>
+                  </div>
+                </button>
               )}
-            </div>
-          </div>
 
-          {/* UPI ID copy */}
-          <div className="mb-5 p-4" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
-            <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "8px" }}>UPI ID</p>
-            <div className="flex items-center justify-between gap-3">
-              <span style={{ fontFamily: "monospace", fontSize: "14px", color: "oklch(0.87 0.02 80)" }}>{upi.upiId}</span>
-              <button onClick={copyUpiId} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase transition-all duration-200"
-                style={{
-                  fontFamily: "monospace",
-                  backgroundColor: copied ? "oklch(0.52 0.24 25 / 0.15)" : "transparent",
-                  border: `1px solid ${copied ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`,
-                  color: copied ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)",
-                }}>
-                {copied ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+              {/* Manual UPI option */}
+              <button
+                onClick={() => setPayMethod("manual")}
+                className="w-full flex items-center gap-4 p-4 text-left transition-all duration-200"
+                style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.12)" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.40)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(1 0 0 / 0.12)"; }}
+              >
+                <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center" style={{ backgroundColor: "oklch(0.15 0.006 285)", border: "1px solid oklch(1 0 0 / 0.12)" }}>
+                  <Smartphone size={18} style={{ color: "oklch(0.55 0.015 285)" }} />
+                </div>
+                <div className="flex-1">
+                  <p style={{ color: "oklch(0.87 0.02 80)", fontSize: "14px", fontWeight: 600, marginBottom: "2px" }}>Pay via UPI Manually</p>
+                  <p style={{ color: "oklch(0.50 0.015 285)", fontFamily: "monospace", fontSize: "11px" }}>Scan QR or open UPI app — enter UTR after payment</p>
+                </div>
               </button>
             </div>
-            <p style={{ fontFamily: "monospace", fontSize: "11px", color: "oklch(0.45 0.015 285)", marginTop: "4px" }}>
-              Pay to: {upi.accountName}
-            </p>
-          </div>
+          )}
 
-          {/* Pay button — pre-fills UPI app with amount, UPI ID, and transaction ref */}
-          <a
-            href={upiUri}
-            className="flex items-center justify-center gap-3 py-4 mb-4 text-sm tracking-widest uppercase transition-all duration-200"
-            style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)", display: "flex" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
-          >
-            <Smartphone size={16} /> Open UPI App · Pay {formatINR(totalAmount)}
-          </a>
+          {/* ── Razorpay Flow ── */}
+          {payMethod === "razorpay" && (
+            <div>
+              <div className="mb-5 p-4" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}>
+                <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "6px" }}>
+                  Order Reference
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ fontFamily: "monospace", fontSize: "15px", fontWeight: 700, color: "oklch(0.52 0.24 25)", letterSpacing: "0.05em" }}>{txnRef}</span>
+                  <button onClick={copyTxnRef} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase"
+                    style={{ fontFamily: "monospace", backgroundColor: copiedRef ? "oklch(0.52 0.24 25 / 0.15)" : "transparent", border: `1px solid ${copiedRef ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`, color: copiedRef ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)" }}>
+                    {copiedRef ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+              </div>
 
-          {/* WhatsApp confirm */}
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 py-3 mb-4 text-xs tracking-widest uppercase transition-all duration-200"
-            style={{ fontFamily: "monospace", backgroundColor: "oklch(0.11 0.006 285)", color: "oklch(0.65 0.18 145)", border: "1px solid oklch(0.65 0.18 145 / 0.3)", display: "flex" }}
-          >
-            <MessageCircle size={14} /> Confirm Order on WhatsApp
-          </a>
+              <button
+                onClick={handleRazorpayPay}
+                disabled={initiateRazorpay.isPending || verifyRazorpay.isPending}
+                className="w-full flex items-center justify-center gap-3 py-4 text-sm tracking-widest uppercase transition-all duration-200"
+                style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)", opacity: (initiateRazorpay.isPending || verifyRazorpay.isPending) ? 0.7 : 1 }}
+                onMouseEnter={(e) => { if (!initiateRazorpay.isPending) (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
+              >
+                {(initiateRazorpay.isPending || verifyRazorpay.isPending)
+                  ? <><Loader2 size={16} className="animate-spin" /> Processing...</>
+                  : <><CreditCard size={16} /> Pay {formatINR(totalAmount)} with Razorpay</>
+                }
+              </button>
 
-          {/* Done button */}
-          <button
-            onClick={onDone}
-            className="w-full flex items-center justify-center gap-2 py-3 text-xs tracking-widest uppercase transition-all duration-200"
-            style={{ fontFamily: "monospace", backgroundColor: "transparent", color: "oklch(0.55 0.015 285)", border: "1px solid oklch(1 0 0 / 0.12)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(0.52 0.24 25 / 0.4)"; (e.currentTarget as HTMLElement).style.color = "oklch(0.87 0.02 80)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "oklch(1 0 0 / 0.12)"; (e.currentTarget as HTMLElement).style.color = "oklch(0.55 0.015 285)"; }}
-          >
-            <CheckCircle2 size={14} /> I've Paid — Done
-          </button>
+              <div className="flex items-start gap-3 mt-4 p-3" style={{ backgroundColor: "oklch(0.65 0.18 145 / 0.06)", border: "1px solid oklch(0.65 0.18 145 / 0.20)" }}>
+                <Shield size={13} style={{ color: "oklch(0.65 0.18 145)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontFamily: "monospace", fontSize: "11px", lineHeight: 1.6, color: "oklch(0.65 0.18 145)" }}>
+                  Razorpay will open a secure checkout. Your order is automatically confirmed once payment is complete.
+                </p>
+              </div>
+            </div>
+          )}
 
-          {/* Notice */}
-          <div className="flex items-start gap-3 mt-4 p-3" style={{ backgroundColor: "oklch(0.62 0.18 60 / 0.06)", border: "1px solid oklch(0.62 0.18 60 / 0.2)" }}>
-            <AlertCircle size={14} style={{ color: "oklch(0.62 0.18 60)", flexShrink: 0, marginTop: 2 }} />
-            <p style={{ fontFamily: "monospace", fontSize: "11px", lineHeight: 1.6, color: "oklch(0.62 0.18 60)" }}>
-              After payment, confirm via WhatsApp with your payment screenshot and order ref <strong>{txnRef}</strong>. We ship from Bangalore, India.
-            </p>
-          </div>
+          {/* ── Manual UPI Flow ── */}
+          {payMethod === "manual" && (
+            <div>
+              {/* Transaction Ref */}
+              <div className="mb-4 p-4" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.30)" }}>
+                <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "6px" }}>
+                  Transaction Reference (use in payment note)
+                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ fontFamily: "monospace", fontSize: "15px", fontWeight: 700, color: "oklch(0.52 0.24 25)", letterSpacing: "0.05em" }}>{txnRef}</span>
+                  <button onClick={copyTxnRef} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase"
+                    style={{ fontFamily: "monospace", backgroundColor: copiedRef ? "oklch(0.52 0.24 25 / 0.15)" : "transparent", border: `1px solid ${copiedRef ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`, color: copiedRef ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)" }}>
+                    {copiedRef ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center mb-4">
+                <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "12px" }}>
+                  Scan QR to Pay {formatINR(totalAmount)}
+                </p>
+                <div className="p-4 bg-white inline-block">
+                  {upi.qrCodeUrl ? (
+                    <img src={upi.qrCodeUrl} alt="UPI QR Code" className="w-40 h-40 object-contain" />
+                  ) : (
+                    <QRCodeSVG value={upiUri} size={160} level="M" />
+                  )}
+                </div>
+              </div>
+
+              {/* UPI ID */}
+              <div className="mb-4 p-4" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.08)" }}>
+                <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "8px" }}>UPI ID</p>
+                <div className="flex items-center justify-between gap-3">
+                  <span style={{ fontFamily: "monospace", fontSize: "14px", color: "oklch(0.87 0.02 80)" }}>{upi.upiId}</span>
+                  <button onClick={copyUpiId} className="flex items-center gap-1.5 px-3 py-1.5 text-xs tracking-widest uppercase"
+                    style={{ fontFamily: "monospace", backgroundColor: copied ? "oklch(0.52 0.24 25 / 0.15)" : "transparent", border: `1px solid ${copied ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`, color: copied ? "oklch(0.52 0.24 25)" : "oklch(0.55 0.015 285)" }}>
+                    {copied ? <><CheckCheck size={12} /> Copied!</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                </div>
+                <p style={{ fontFamily: "monospace", fontSize: "11px", color: "oklch(0.45 0.015 285)", marginTop: "4px" }}>Pay to: {upi.accountName}</p>
+              </div>
+
+              {/* Open UPI App button */}
+              <a
+                href={upiUri}
+                className="flex items-center justify-center gap-3 py-3 mb-4 text-sm tracking-widest uppercase transition-all duration-200"
+                style={{ fontFamily: "monospace", backgroundColor: "oklch(0.52 0.24 25)", color: "oklch(0.97 0.005 80)", border: "1px solid oklch(0.52 0.24 25)", display: "flex" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.45 0.22 25)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.52 0.24 25)"; }}
+              >
+                <Smartphone size={16} /> Open UPI App · Pay {formatINR(totalAmount)}
+              </a>
+
+              {/* UTR Entry */}
+              <div className="mb-4 p-4" style={{ backgroundColor: "oklch(0.11 0.006 285)", border: "1px solid oklch(1 0 0 / 0.12)" }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Hash size={13} style={{ color: "oklch(0.52 0.24 25)" }} />
+                  <p style={{ fontFamily: "monospace", fontSize: "10px", letterSpacing: "0.12em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)" }}>
+                    Enter UTR / Transaction ID after payment
+                  </p>
+                </div>
+                <input
+                  value={utrInput}
+                  onChange={e => { setUtrInput(e.target.value); setUtrError(""); }}
+                  placeholder="e.g. 123456789012 or T2504151234..."
+                  style={{
+                    backgroundColor: "oklch(0.08 0.006 285)",
+                    border: `1px solid ${utrError ? "oklch(0.65 0.22 25)" : "oklch(1 0 0 / 0.15)"}`,
+                    color: "oklch(0.87 0.02 80)",
+                    outline: "none",
+                    width: "100%",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    fontFamily: "monospace",
+                    letterSpacing: "0.04em",
+                    marginBottom: "8px",
+                  }}
+                />
+                {utrError && <p style={{ color: "oklch(0.65 0.22 25)", fontSize: "11px", fontFamily: "monospace", marginBottom: "8px" }}>{utrError}</p>}
+                <p style={{ fontFamily: "monospace", fontSize: "10px", color: "oklch(0.38 0.015 285)", lineHeight: 1.5 }}>
+                  Find the UTR/transaction ID in your UPI app under payment history. This confirms your order.
+                </p>
+              </div>
+
+              <button
+                onClick={handleUTRSubmit}
+                disabled={submitUTR.isPending}
+                className="w-full flex items-center justify-center gap-3 py-3 mb-3 text-sm tracking-widest uppercase transition-all duration-200"
+                style={{ fontFamily: "monospace", backgroundColor: utrInput.trim().length >= 6 ? "oklch(0.52 0.24 25)" : "oklch(0.20 0.006 285)", color: "oklch(0.97 0.005 80)", border: `1px solid ${utrInput.trim().length >= 6 ? "oklch(0.52 0.24 25)" : "oklch(1 0 0 / 0.15)"}`, opacity: submitUTR.isPending ? 0.7 : 1 }}
+              >
+                {submitUTR.isPending ? <><Loader2 size={14} className="animate-spin" /> Confirming...</> : <><CheckCircle2 size={14} /> Confirm Payment</>}
+              </button>
+
+              {/* WhatsApp confirm */}
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-3 py-3 text-xs tracking-widest uppercase transition-all duration-200"
+                style={{ fontFamily: "monospace", backgroundColor: "oklch(0.11 0.006 285)", color: "oklch(0.65 0.18 145)", border: "1px solid oklch(0.65 0.18 145 / 0.3)", display: "flex" }}
+              >
+                <MessageCircle size={14} /> Also Confirm on WhatsApp
+              </a>
+
+              <div className="flex items-start gap-3 mt-4 p-3" style={{ backgroundColor: "oklch(0.62 0.18 60 / 0.06)", border: "1px solid oklch(0.62 0.18 60 / 0.2)" }}>
+                <AlertCircle size={14} style={{ color: "oklch(0.62 0.18 60)", flexShrink: 0, marginTop: 2 }} />
+                <p style={{ fontFamily: "monospace", fontSize: "11px", lineHeight: 1.6, color: "oklch(0.62 0.18 60)" }}>
+                  Enter your UTR number above to confirm your order. We will verify and ship from Bangalore, India.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -485,7 +684,15 @@ function UpiPaymentModal({
 }
 
 /* ── Step 3: Order Confirmed ────────────────────────────────────── */
-function OrderConfirmedModal({ txnRef, onClose }: { txnRef: string; onClose: () => void }) {
+function OrderConfirmedModal({
+  txnRef,
+  paymentMethod,
+  onClose,
+}: {
+  txnRef: string;
+  paymentMethod: "razorpay" | "manual";
+  onClose: () => void;
+}) {
   return (
     <div
       className="fixed inset-0 z-[400] flex items-center justify-center p-4"
@@ -501,7 +708,7 @@ function OrderConfirmedModal({ txnRef, onClose }: { txnRef: string; onClose: () 
       >
         <CheckCircle2 size={48} className="mx-auto mb-5" style={{ color: "oklch(0.52 0.24 25)" }} />
         <h3 style={{ fontFamily: "var(--font-display, serif)", fontSize: "24px", color: "oklch(0.93 0.015 80)", marginBottom: "12px" }}>
-          ORDER PLACED
+          {paymentMethod === "razorpay" ? "PAYMENT CONFIRMED" : "ORDER PLACED"}
         </h3>
         <p style={{ fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.45 0.015 285)", marginBottom: "16px" }}>
           Transaction Reference
@@ -509,9 +716,17 @@ function OrderConfirmedModal({ txnRef, onClose }: { txnRef: string; onClose: () 
         <p style={{ fontFamily: "monospace", fontSize: "20px", fontWeight: 700, color: "oklch(0.52 0.24 25)", marginBottom: "20px", letterSpacing: "0.05em" }}>
           {txnRef}
         </p>
-        <p style={{ fontFamily: "monospace", fontSize: "12px", lineHeight: 1.7, color: "oklch(0.55 0.015 285)", marginBottom: "28px" }}>
-          Save your order reference. After completing the UPI payment, send your payment screenshot + order ref to us on WhatsApp to confirm shipment.
-        </p>
+
+        {paymentMethod === "razorpay" ? (
+          <p style={{ fontFamily: "monospace", fontSize: "12px", lineHeight: 1.7, color: "oklch(0.55 0.015 285)", marginBottom: "28px" }}>
+            Your payment has been verified automatically. We will process and ship your order from Bangalore, India.
+          </p>
+        ) : (
+          <p style={{ fontFamily: "monospace", fontSize: "12px", lineHeight: 1.7, color: "oklch(0.55 0.015 285)", marginBottom: "28px" }}>
+            Your UTR has been recorded. We will verify your payment and ship from Bangalore, India. Save your order reference for tracking.
+          </p>
+        )}
+
         <div className="flex items-center gap-2 justify-center mb-6 p-3" style={{ backgroundColor: "oklch(0.52 0.24 25 / 0.08)", border: "1px solid oklch(0.52 0.24 25 / 0.25)" }}>
           <Package size={14} style={{ color: "oklch(0.52 0.24 25)" }} />
           <span style={{ fontFamily: "monospace", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(0.52 0.24 25)" }}>
@@ -710,18 +925,13 @@ function ProductModal({
 /* ── Fallback Data ───────────────────────────────────────────────── */
 const FALLBACK_PRODUCTS: DbProduct[] = [
   { id: 1, name: "Anamnesis — Regular Tee", category: "tees", price: 999, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tee_hd_e9accf90.jpg", description: "The Anamnesis regular tee.", sizes: "S,M,L,XL,2XL,3XL", tags: "Signature,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 1, shopifyUrl: null },
-  { id: 2, name: "Anamnesis — Tank Top", category: "tanks", price: 899, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tank_hd_b3f14fac.jpg", description: "The Anamnesis tank top.", sizes: "S,M,L,XL,2XL", tags: "Signature,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 2, shopifyUrl: null },
-  { id: 3, name: "Berserker — Shorts", category: "shorts", price: 899, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_shorts_correct_cf0c28e8.png", description: "Berserker shorts.", sizes: "S,M,L,XL,2XL", tags: "New,black", collectionTag: "Berserker", isActive: true, sortOrder: 3, shopifyUrl: null },
-  { id: 4, name: "Berserker — Tank Top", category: "tanks", price: 799, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_berserker_tank_hd_afbe5844.png", description: "Berserker tank top.", sizes: "S,M,L,XL,2XL,3XL", tags: "New,black", collectionTag: "Berserker", isActive: true, sortOrder: 4, shopifyUrl: null },
-  { id: 5, name: "Crop Top — She/Her", category: "tops", price: 799, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_crop_top_hd_1e662d72.png", description: "Crop top for She/Her.", sizes: "XS,S,M,L,XL", tags: "New,black", collectionTag: "Core", isActive: true, sortOrder: 5, shopifyUrl: null },
-  { id: 6, name: "Nomad — Shorts", category: "shorts", price: 899, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_shorts_hd_66199aa0.png", description: "Nomad shorts.", sizes: "S,M,L,XL,2XL", tags: "Signature,black", collectionTag: "Nomad", isActive: true, sortOrder: 6, shopifyUrl: null },
-  { id: 7, name: "Nomad — Tank Top", category: "tanks", price: 799, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_nomad_tank_hd_78506900.png", description: "Nomad tank top.", sizes: "S,M,L,XL,2XL,3XL", tags: "Signature,black", collectionTag: "Nomad", isActive: true, sortOrder: 7, shopifyUrl: null },
-  { id: 8, name: "Ouroboros & Meditate — Tee", category: "tees", price: 999, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_ouroborus_tee_hd_b56f698d.jpg", description: "Ouroboros & Meditate tee.", sizes: "S,M,L,XL,2XL", tags: "Signature,black", collectionTag: "Ouroboros", isActive: true, sortOrder: 8, shopifyUrl: null },
+  { id: 2, name: "Anamnesis — Tank Top", category: "tanks", price: 899, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tee_hd_e9accf90.jpg", description: "The Anamnesis tank top.", sizes: "S,M,L,XL,2XL", tags: "Signature,black", collectionTag: "Anamnesis", isActive: true, sortOrder: 2, shopifyUrl: null },
+  { id: 3, name: "Ksetravid — Logo Tee", category: "tees", price: 799, imageUrl: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/merch_anamnesis_tee_hd_e9accf90.jpg", description: "Classic logo tee.", sizes: "S,M,L,XL,2XL,3XL", tags: "Logo,black", collectionTag: null, isActive: true, sortOrder: 3, shopifyUrl: null },
 ];
 
 const FALLBACK_UPI: UpiData = {
-  upiId: "nikhilraj2110@oksbi",
-  accountName: "T R Nikhil",
+  upiId: "ksetravid@upi",
+  accountName: "Ksetravid",
   qrCodeUrl: null,
   whatsappNumber: FALLBACK_WHATSAPP,
 };
@@ -741,7 +951,9 @@ export default function MerchSection() {
   const [checkoutSize, setCheckoutSize] = useState("");
   const [checkoutQty, setCheckoutQty] = useState(1);
   const [checkoutTxnRef, setCheckoutTxnRef] = useState("");
+  const [checkoutOrderId, setCheckoutOrderId] = useState(0);
   const [checkoutDelivery, setCheckoutDelivery] = useState<DeliveryInfo>(EMPTY_DELIVERY);
+  const [confirmedPayMethod, setConfirmedPayMethod] = useState<"razorpay" | "manual">("manual");
 
   const products = useMemo(() => {
     if (dbProducts && dbProducts.length > 0) return dbProducts.filter(p => p.isActive);
@@ -782,13 +994,20 @@ export default function MerchSection() {
     setCheckoutSize("");
     setCheckoutQty(1);
     setCheckoutTxnRef("");
+    setCheckoutOrderId(0);
     setCheckoutDelivery(EMPTY_DELIVERY);
   }
 
-  function handleDeliveryNext(info: DeliveryInfo, txnRef: string, _orderId: number) {
+  function handleDeliveryNext(info: DeliveryInfo, txnRef: string, orderId: number) {
     setCheckoutDelivery(info);
     setCheckoutTxnRef(txnRef);
+    setCheckoutOrderId(orderId);
     setCheckoutStep("payment");
+  }
+
+  function handlePaymentDone(method: "razorpay" | "manual") {
+    setConfirmedPayMethod(method);
+    setCheckoutStep("confirmed");
   }
 
   return (
@@ -816,23 +1035,28 @@ export default function MerchSection() {
         />
       )}
 
-      {/* Step 2: UPI Payment */}
+      {/* Step 2: Payment (Razorpay or Manual UPI) */}
       {checkoutStep === "payment" && checkoutProduct && checkoutTxnRef && (
-        <UpiPaymentModal
+        <PaymentModal
           product={checkoutProduct}
           size={checkoutSize}
           quantity={checkoutQty}
           upi={upi}
           txnRef={checkoutTxnRef}
+          orderId={checkoutOrderId}
           deliveryInfo={checkoutDelivery}
           onClose={handleCloseAll}
-          onDone={() => setCheckoutStep("confirmed")}
+          onDone={handlePaymentDone}
         />
       )}
 
       {/* Step 3: Confirmation */}
       {checkoutStep === "confirmed" && checkoutTxnRef && (
-        <OrderConfirmedModal txnRef={checkoutTxnRef} onClose={handleCloseAll} />
+        <OrderConfirmedModal
+          txnRef={checkoutTxnRef}
+          paymentMethod={confirmedPayMethod}
+          onClose={handleCloseAll}
+        />
       )}
 
       <section id="merch" className="relative py-14 md:py-24" style={{ backgroundColor: "oklch(0.07 0.005 285)" }}>

@@ -214,7 +214,7 @@ export default function ContactSection() {
                     <option value="booking">Booking Enquiry</option>
                     <option value="press">Press / Media</option>
                     <option value="collab">Collaboration</option>
-                    <option value="vocalist">Vocalist Audition</option>
+              
                     <option value="general">General</option>
                   </select>
                 </div>

@@ -140,8 +140,8 @@ export default function FaqSection() {
           style={{ color: "oklch(0.35 0.005 285)" }}
         >
           Ksetravid is one of India's leading progressive death metal and technical death metal bands,
-          based in Bangalore, Karnataka. Part of the Indian extreme metal scene alongside bands like
-          Demonic Resurrection, Gutslit, and Godless. Stream on Spotify, Apple Music, and Bandcamp.
+          based in Bangalore, Karnataka. Part of the Indian extreme metal scene. 
+          Stream on Spotify, Apple Music, and Bandcamp.
         </p>
       </div>
     </section>

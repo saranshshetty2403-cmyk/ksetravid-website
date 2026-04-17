@@ -37,7 +37,7 @@ export default function HeroSection() {
     <section
       id="home"
       ref={heroRef}
-      className="relative min-h-screen flex items-center overflow-hidden"
+      className="relative flex items-start lg:items-center lg:min-h-screen overflow-hidden"
       style={{ backgroundColor: "oklch(0.06 0.005 285)" }}
     >
       {/* Background image */}
@@ -57,11 +57,11 @@ export default function HeroSection() {
 
       {/* Bottom gradient fade */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-48"
+        className="absolute bottom-0 left-0 right-0 h-24 lg:h-48 pointer-events-none"
         style={{ background: "linear-gradient(to bottom, transparent, oklch(0.08 0.005 285))" }}
       />
 
-      <div className="container relative z-10 w-full pt-28 pb-20">
+      <div className="container relative z-10 w-full pt-24 pb-12 lg:pt-28 lg:pb-20">
 
         {/* ── MOBILE LAYOUT: section-header pattern, matches AboutSection ── */}
         <div className="lg:hidden">
@@ -200,16 +200,13 @@ export default function HeroSection() {
             <img
               src={BAND_PHOTO}
               alt="Ksetravid band"
-              className="w-full object-cover"
+              className="w-full h-auto block"
               style={{
                 filter: "contrast(1.1) brightness(0.9)",
                 maskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)",
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)",
                 WebkitMaskImage:
-                  "linear-gradient(to bottom, transparent 0%, black 10%, black 88%, transparent 100%)",
-                maxHeight: "340px",
-                objectFit: "cover",
-                objectPosition: "top",
+                  "linear-gradient(to bottom, transparent 0%, black 8%, black 92%, transparent 100%)",
               }}
             />
           </div>

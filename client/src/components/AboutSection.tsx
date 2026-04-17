@@ -114,13 +114,8 @@ export default function AboutSection() {
             <div
               className="absolute -bottom-8 -right-4 w-48 h-32 border-2 overflow-hidden hidden md:block"
               style={{ borderColor: "oklch(0.42 0.22 25)" }}
-            >
-              <img
-                src={BAND_PHOTO_BW}
-              alt="Ksetravid band photo"
-              className="w-full h-full object-cover"
-                style={{ filter: "grayscale(100%) contrast(1.2)" }}
-              />
+            
+              
             </div>
             {/* Corner accents */}
             <div className="absolute top-0 left-0 w-8 h-8" style={{ borderTop: "2px solid oklch(0.52 0.24 25)", borderLeft: "2px solid oklch(0.52 0.24 25)" }} />

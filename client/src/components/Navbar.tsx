@@ -127,25 +127,6 @@ export default function Navbar() {
             />
           </div>
 
-          {/* Listen CTA — right */}
-          <a
-            href="https://open.spotify.com/artist/7DAIDyITrD8jeb60tCWQLk"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 text-xs font-mono-tech tracking-widest uppercase transition-all duration-200 border flex-shrink-0"
-            style={{
-              borderColor: "oklch(0.42 0.22 25)",
-              color: "oklch(0.87 0.02 80)",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = "oklch(0.42 0.22 25)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
-            }}
-          >
-            ▶ Listen
-          </a>
         </div>
 
         {/* ── MOBILE NAVBAR (below md) ── */}

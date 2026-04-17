@@ -37,7 +37,7 @@ const RELEASES = [
     type: "Single",
     year: "2022",
     artwork: "https://d2xsxph8kpxj0f.cloudfront.net/310519663502701477/hsCtMSAamD8xKhZV5LbA6R/single_staticbelief_31fffd1f.png",
-    description: "The second single, featuring an official music video with all band members. An acerbic examination of organized religion and the failings of dogmatic belief systems. Rolling Stone India praised vocalist Sunneith Revankar's aggressive delivery, aided by Ezra Helios on bass and Jerry Nelson on drums.",
+    description: "The second single, featuring an official music video with all band members. An acerbic examination of organized religion and the failings of dogmatic belief systems. Rolling Stone India praised vocalist's aggressive delivery, aided by Arunav on bass and Nikhil on drums.",
     spotify: "https://open.spotify.com/track/ksetravid-staticbelief",
     bandcamp: "https://ksetravid.bandcamp.com/track/static-belief-system",
     youtube: "https://www.youtube.com/watch?v=W4nXoQZfRK0",

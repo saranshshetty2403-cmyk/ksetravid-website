@@ -112,7 +112,7 @@ export default function AboutSection() {
             />
             {/* Offset second photo */}
             
-            </div>
+            
             {/* Corner accents */}
             <div className="absolute top-0 left-0 w-8 h-8" style={{ borderTop: "2px solid oklch(0.52 0.24 25)", borderLeft: "2px solid oklch(0.52 0.24 25)" }} />
             <div className="absolute bottom-0 right-0 w-8 h-8" style={{ borderBottom: "2px solid oklch(0.52 0.24 25)", borderRight: "2px solid oklch(0.52 0.24 25)" }} />
